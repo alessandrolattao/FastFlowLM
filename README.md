@@ -22,12 +22,7 @@ flm run llama3.2:1b
 - AMD Ryzen AI CPU with XDNA2 NPU (Strix, Strix Halo, Kraken, Gorgon Point)
 - Linux kernel >= 6.10 (for DKMS kernel module build)
 - NPU firmware >= 1.1.0.0 (installed automatically by `xdna-driver`)
-- Unlimited memlock limit:
-  ```
-  # /etc/security/limits.conf
-  *  soft  memlock  unlimited
-  *  hard  memlock  unlimited
-  ```
+- Unlimited memlock limit (set automatically by `xdna-driver` in `/etc/security/limits.d/99-amdxdna.conf`, log out and back in after install)
 
 ## About `flm-fetch-kernels`
 
@@ -60,8 +55,9 @@ See [docs/building-locally.md](docs/building-locally.md).
 ## Structure
 
 ```
-fastflowlm/         fastflowlm.spec + flm-fetch-kernels
-xdna-driver/        xdna-driver.spec (XRT + firmware + DKMS kernel module)
+fastflowlm/         fastflowlm.spec + flm-fetch-kernels + make_srpm
+xdna-driver/        xdna-driver.spec (XRT + firmware + DKMS kernel module) + make_srpm
+.copr/              Makefile used by COPR to generate SRPMs
 docs/               Build and publishing guides
-Makefile            Targets: srpm, mock, lint, copr
+Makefile            Targets: srpm, copr, bump, clean
 ```
