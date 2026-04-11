@@ -104,11 +104,12 @@ rm -rf %{buildroot}%{_prefix}/lib64
 rm -f %{buildroot}/usr/local/bin/flm 2>/dev/null || true
 
 # Create correct symlink in /usr/bin/
-install -d %{buildroot}%{_bindir}
-ln -sf %{_prefix}/bin/flm %{buildroot}%{_bindir}/flm
+# NOTE: _bindir is overridden to /opt/fastflowlm/bin by _prefix, so use /usr/bin explicitly
+install -d %{buildroot}/usr/bin
+ln -sf %{_prefix}/bin/flm %{buildroot}/usr/bin/flm
 
 # Install flm-fetch-kernels helper script
-install -Dm755 %{SOURCE1} %{buildroot}%{_bindir}/flm-fetch-kernels
+install -Dm755 %{SOURCE1} %{buildroot}/usr/bin/flm-fetch-kernels
 
 # VERSION file: read by flm-fetch-kernels to know which release to download
 echo "%{version}" > %{buildroot}%{_prefix}/VERSION
@@ -142,8 +143,8 @@ echo ""
 %dir %{_prefix}/share/flm
 %{_prefix}/share/flm/model_list.json
 %{_prefix}/share/flm/xclbins/
-%{_bindir}/flm
-%{_bindir}/flm-fetch-kernels
+/usr/bin/flm
+/usr/bin/flm-fetch-kernels
 
 %changelog
 * Sat Apr 11 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.38-1
