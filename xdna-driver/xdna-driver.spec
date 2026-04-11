@@ -107,8 +107,19 @@ make -j$(nproc) -C build
 %install
 make -C build DESTDIR=%{buildroot} install
 
+# cmake installs XRT core libs to DESTDIR/bins/lib64 (hardcoded staging path).
+# Move them to the canonical XRT prefix.
+if [ -d %{buildroot}/bins ]; then
+    cp -a %{buildroot}/bins/. %{buildroot}/opt/xilinx/xrt/
+    rm -rf %{buildroot}/bins
+fi
+
 # Symlink lib -> lib64 for compatibility (FastFlowLM expects /opt/xilinx/xrt/lib)
 ln -sf lib64 %{buildroot}/opt/xilinx/xrt/lib
+
+# XRT headers (from submodule source tree - not installed by cmake in plugin mode)
+install -d %{buildroot}/opt/xilinx/xrt/include
+cp -r xrt/src/runtime_src/core/include/. %{buildroot}/opt/xilinx/xrt/include/
 
 # Firmware
 find firmware/amdnpu -type f | while read f; do
@@ -155,8 +166,14 @@ install -d %{buildroot}%{_sysconfdir}/OpenCL/vendors
     echo "/opt/xilinx/xrt/lib64/libxilinxopencl.so.2" \
     > %{buildroot}%{_sysconfdir}/OpenCL/vendors/xilinx.icd
 
-# Remove unnecessary files
-rm -rf %{buildroot}/opt/xilinx/xrt/share/doc 2>/dev/null || true
+# Remove files not needed at runtime (XRT CLI tools, Python bindings, shell setup scripts)
+rm -rf %{buildroot}/opt/xilinx/xrt/bin 2>/dev/null || true
+rm -rf %{buildroot}/opt/xilinx/xrt/python 2>/dev/null || true
+rm -rf %{buildroot}/opt/xilinx/xrt/share 2>/dev/null || true
+rm -f %{buildroot}/opt/xilinx/xrt/setup.sh 2>/dev/null || true
+rm -f %{buildroot}/opt/xilinx/xrt/setup.csh 2>/dev/null || true
+rm -f %{buildroot}/opt/xilinx/xrt/setup.fish 2>/dev/null || true
+rm -f %{buildroot}/opt/xilinx/xrt/version.json 2>/dev/null || true
 
 # memlock limits for NPU buffer allocation
 install -Dm644 /dev/null \
@@ -193,15 +210,8 @@ fi
 %files
 %license xrt/LICENSE
 %dir /opt/xilinx/xrt
-/opt/xilinx/xrt/bin/
 /opt/xilinx/xrt/lib64/
 /opt/xilinx/xrt/lib
-/opt/xilinx/xrt/python/
-/opt/xilinx/xrt/share/
-/opt/xilinx/xrt/setup.sh
-/opt/xilinx/xrt/setup.csh
-/opt/xilinx/xrt/setup.fish
-/opt/xilinx/xrt/version.json
 %config(noreplace) %{_sysconfdir}/OpenCL/vendors/xilinx.icd
 %config(noreplace) %{_sysconfdir}/ld.so.conf.d/xdna-driver.conf
 %config(noreplace) %{_sysconfdir}/security/limits.d/99-amdxdna.conf
