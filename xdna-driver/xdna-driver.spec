@@ -146,6 +146,11 @@ printf '# Allow unlimited locked memory for AMD XDNA NPU buffer allocation\n* so
 
 %post
 /sbin/ldconfig
+echo ""
+echo "xdna-driver installed."
+echo "Memory lock limits have been set in /etc/security/limits.d/99-amdxdna.conf"
+echo "Log out and back in (or reboot) for the limits to take effect."
+echo ""
 
 %postun
 /sbin/ldconfig
