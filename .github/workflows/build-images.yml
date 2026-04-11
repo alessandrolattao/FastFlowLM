@@ -17,6 +17,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - file: docker/Dockerfile.fedora-42
+            tag: fedora-42
           - file: docker/Dockerfile.fedora-43
             tag: fedora-43
           - file: docker/Dockerfile.fedora-44

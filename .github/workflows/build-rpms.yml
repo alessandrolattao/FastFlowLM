@@ -53,6 +53,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - os: fc42
+            image: ghcr.io/alessandrolattao/fastflowlm-build:fedora-42
           - os: fc43
             image: ghcr.io/alessandrolattao/fastflowlm-build:fedora-43
           - os: fc44
