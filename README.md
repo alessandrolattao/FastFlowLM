@@ -9,7 +9,7 @@ FastFlowLM runs large language models on AMD Ryzen AI XDNA2 NPUs.
 
 ## Install
 
-**Fedora:**
+### Fedora
 
 Add the COPR repo:
 ```sh
@@ -21,16 +21,35 @@ Install the driver and runtime (DKMS builds the kernel module automatically):
 sudo dnf install fastflowlm
 ```
 
-**AlmaLinux / Rocky Linux / RHEL:**
+Download the proprietary NPU kernel binaries (requires internet access to GitHub):
+```sh
+sudo flm-fetch-kernels
+```
 
-Enable EPEL and COPR first (EPEL is required for `dkms`):
+Verify the NPU is detected and working:
+```sh
+flm validate
+```
+
+Run a model:
+```sh
+flm run llama3.2:1b
+```
+
+### AlmaLinux / Rocky Linux / RHEL
+
+EPEL is required for `dkms`. Enable it before adding the COPR repo:
 ```sh
 sudo dnf install epel-release
 sudo dnf install dkms kernel-devel
+```
+
+Add the COPR repo:
+```sh
 sudo dnf copr enable alessandrolattao/fastflowlm
 ```
 
-Then install:
+Install the driver and runtime (DKMS builds the kernel module automatically):
 ```sh
 sudo dnf install fastflowlm
 ```
