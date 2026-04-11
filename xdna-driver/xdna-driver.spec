@@ -121,11 +121,9 @@ ln -sf lib64 %{buildroot}/opt/xilinx/xrt/lib
 install -d %{buildroot}/opt/xilinx/xrt/include
 cp -r xrt/src/runtime_src/core/include/. %{buildroot}/opt/xilinx/xrt/include/
 
-# Firmware
+# Firmware (firmware/amdnpu/XX/npu.dev.sbin -> /usr/lib/firmware/amdnpu/XX/npu.dev.sbin)
 find firmware/amdnpu -type f | while read f; do
-    dest=%{buildroot}/usr/lib/firmware/$(dirname "$f")
-    install -d "$dest"
-    install -m644 "$f" "$dest/"
+    install -Dm644 "$f" "%{buildroot}/usr/lib/$f"
 done
 
 # DKMS: install driver source to /usr/src/xrt-amdxdna-VERSION/
