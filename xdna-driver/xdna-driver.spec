@@ -186,6 +186,13 @@ install -Dm644 /dev/null \
 printf '# Allow unlimited locked memory for AMD XDNA NPU buffer allocation\n* soft memlock unlimited\n* hard memlock unlimited\n' \
     > %{buildroot}%{_sysconfdir}/security/limits.d/99-amdxdna.conf
 
+# dracut: exclude amdxdna from initramfs so it loads after rootfs is mounted
+# (firmware lives on disk, not in initramfs - loading from initramfs causes ENOENT)
+install -Dm644 /dev/null \
+    %{buildroot}%{_sysconfdir}/dracut.conf.d/99-amdxdna.conf
+printf '# amdxdna firmware lives on disk - exclude from initramfs, load after rootfs mount\nomit_drivers+=" amdxdna "\n' \
+    > %{buildroot}%{_sysconfdir}/dracut.conf.d/99-amdxdna.conf
+
 %post
 /sbin/ldconfig
 echo ""
@@ -223,6 +230,12 @@ if command -v dkms &>/dev/null; then
         fi
     done
 fi
+# Regenerate initramfs to apply the dracut omit_drivers config for amdxdna
+if command -v dracut &>/dev/null; then
+    echo "Regenerating initramfs to exclude amdxdna (loads after rootfs mount)..."
+    dracut -f --regenerate-all 2>&1 || \
+        echo "WARNING: initramfs regeneration failed - run 'sudo dracut -f --regenerate-all' manually, then reboot"
+fi
 
 %preun dkms
 if command -v dkms &>/dev/null; then
@@ -244,6 +257,7 @@ fi
 
 %files dkms
 /usr/src/xrt-amdxdna-%{version}/
+%config(noreplace) %{_sysconfdir}/dracut.conf.d/99-amdxdna.conf
 
 %changelog
 * Sat Apr 11 2026 Alessandro Lattao <alessandro@lattao.com> - 2.21.75-1
