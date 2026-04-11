@@ -1,20 +1,17 @@
 COPR_USER   = alessandrolattao
 COPR_REPO   = fastflowlm
-MOCK_CHROOT = fedora-rawhide-x86_64
 OUTDIR      = $(shell pwd)/out
 
-.PHONY: all srpm-xdna srpm-flm mock-xdna mock-flm lint copr-xdna copr-flm \
+.PHONY: all srpm-xdna srpm-flm copr-xdna copr-flm copr \
         bump-xdna bump-flm clean help
 
 help:
 	@echo "Available targets:"
 	@echo "  srpm-xdna        Generate SRPM for xdna-driver"
 	@echo "  srpm-flm         Generate SRPM for fastflowlm"
-	@echo "  mock-xdna        Build xdna-driver in mock (clean chroot)"
-	@echo "  mock-flm         Build fastflowlm in mock"
-	@echo "  lint             Run rpmlint on all built RPMs"
-	@echo "  copr-xdna        Upload xdna-driver to COPR"
-	@echo "  copr-flm         Upload fastflowlm to COPR"
+	@echo "  copr-xdna        Submit xdna-driver to COPR (waits for completion)"
+	@echo "  copr-flm         Submit fastflowlm to COPR"
+	@echo "  copr             Submit both to COPR in order (xdna first)"
 	@echo "  bump-xdna VER=x  Bump xdna-driver version in spec"
 	@echo "  bump-flm  VER=x  Bump fastflowlm version in spec"
 	@echo "  clean            Remove build artifacts"
@@ -86,33 +83,17 @@ srpm-flm:
 	@mkdir -p $(OUTDIR)
 	$(call build-srpm,$(shell pwd)/fastflowlm/fastflowlm.spec)
 
-# --- Mock build ---
-
-mock-xdna: srpm-xdna
-	mock -r $(MOCK_CHROOT) \
-	    --resultdir=$(OUTDIR)/xdna-driver \
-	    rebuild $(OUTDIR)/xdna-driver-*.src.rpm
-
-mock-flm: srpm-flm
-	@echo "NOTE: mock-flm requires xdna-driver already installed in the chroot."
-	@echo "      Run 'make mock-xdna' first and add it as a local repo."
-	mock -r $(MOCK_CHROOT) \
-	    --resultdir=$(OUTDIR)/fastflowlm \
-	    --enable-network \
-	    rebuild $(OUTDIR)/fastflowlm-*.src.rpm
-
-# --- Lint ---
-
-lint:
-	@find $(OUTDIR) -name "*.rpm" ! -name "*.src.rpm" | xargs rpmlint
-
 # --- COPR upload ---
 
 copr-xdna: srpm-xdna
 	copr-cli build $(COPR_USER)/$(COPR_REPO) $(OUTDIR)/xdna-driver-*.src.rpm
 
 copr-flm: srpm-flm
-	copr-cli build $(COPR_USER)/$(COPR_REPO) $(OUTDIR)/fastflowlm-*.src.rpm
+	copr-cli build $(COPR_USER)/$(COPR_REPO) $(OUTDIR)/fastflowlm-*.src.rpm --nowait
+
+copr: srpm-xdna srpm-flm
+	copr-cli build $(COPR_USER)/$(COPR_REPO) $(OUTDIR)/xdna-driver-*.src.rpm
+	copr-cli build $(COPR_USER)/$(COPR_REPO) $(OUTDIR)/fastflowlm-*.src.rpm --nowait
 
 # --- Version bump ---
 
