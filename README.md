@@ -21,6 +21,11 @@ Install the driver and runtime (DKMS builds the kernel module automatically):
 sudo dnf install fastflowlm
 ```
 
+Reboot to activate the NPU driver:
+```sh
+sudo reboot
+```
+
 Download the proprietary NPU kernel binaries (requires internet access to GitHub):
 ```sh
 sudo flm-fetch-kernels
@@ -52,6 +57,11 @@ sudo dnf copr enable alessandrolattao/fastflowlm
 Install the driver and runtime (DKMS builds the kernel module automatically):
 ```sh
 sudo dnf install fastflowlm
+```
+
+Reboot to activate the NPU driver:
+```sh
+sudo reboot
 ```
 
 Download the proprietary NPU kernel binaries (requires internet access to GitHub):
