@@ -89,14 +89,18 @@ cmake --preset linux-default \
 cmake --build build -j$(nproc)
 
 %install
-# Install into buildroot
 cd src
-DESTDIR=%{buildroot} cmake --install build --prefix=%{_prefix}
+# cmake install(CODE) creates /usr/local/bin/flm outside DESTDIR (ignores env).
+# Pre-create it inside buildroot so the symlink lands there; ignore any failure.
+mkdir -p %{buildroot}/usr/local/bin
+DESTDIR=%{buildroot} cmake --install build --prefix=%{_prefix} || true
+test -f %{buildroot}%{_prefix}/bin/flm || { echo "ERROR: flm binary not installed"; exit 1; }
 
-# Remove include dir (not needed at runtime)
+# Remove files not needed at runtime
 rm -rf %{buildroot}%{_prefix}/include
+rm -rf %{buildroot}%{_prefix}/lib64
 
-# Remove CMake-generated /usr/local/bin/flm symlink (points outside buildroot)
+# Remove cmake-generated symlink in /usr/local/bin (wrong path for packaging)
 rm -f %{buildroot}/usr/local/bin/flm 2>/dev/null || true
 
 # Create correct symlink in /usr/bin/
@@ -128,11 +132,16 @@ echo ""
 %files
 %license LICENSE_RUNTIME.txt
 %doc README.md
+%dir %{_prefix}
+%dir %{_prefix}/bin
 %{_prefix}/bin/flm
 %{_prefix}/VERSION
-%{_prefix}/share/flm/model_list.json
 %dir %{_prefix}/lib
+%{_prefix}/lib/*.so
+%dir %{_prefix}/share
 %dir %{_prefix}/share/flm
+%{_prefix}/share/flm/model_list.json
+%{_prefix}/share/flm/xclbins/
 %{_bindir}/flm
 %{_bindir}/flm-fetch-kernels
 
