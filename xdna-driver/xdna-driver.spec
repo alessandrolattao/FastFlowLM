@@ -135,6 +135,7 @@ done
 DKMS_SRC=%{buildroot}/usr/src/xrt-amdxdna-%{version}
 install -d "${DKMS_SRC}/driver"
 cp -r src/driver/amdxdna "${DKMS_SRC}/driver/amdxdna"
+cp -r src/include "${DKMS_SRC}/include"
 
 # dkms.conf
 cat > "${DKMS_SRC}/dkms.conf" << 'DKMSEOF'
