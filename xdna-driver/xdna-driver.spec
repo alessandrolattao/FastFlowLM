@@ -89,6 +89,10 @@ Requires:       kernel-devel
 Kernel module source for the AMD XDNA2 NPU driver (amdxdna).
 Automatically built for the installed kernel via DKMS.
 
+On RHEL/AlmaLinux/Rocky Linux, enable EPEL before installing this package:
+  sudo dnf install epel-release
+  sudo dnf install dkms kernel-devel
+
 %prep
 %autosetup -n %{name}-%{version}
 
@@ -193,9 +197,20 @@ echo ""
 /sbin/ldconfig
 
 %post dkms
-if command -v dkms &>/dev/null; then
-    dkms add -m xrt-amdxdna -v %{version} 2>&1 || :
+if ! command -v dkms &>/dev/null; then
+    echo ""
+    echo "WARNING: dkms not found. The amdxdna kernel module will not be built."
+    echo "On RHEL/AlmaLinux/Rocky Linux, enable EPEL first:"
+    echo ""
+    echo "  sudo dnf install epel-release"
+    echo "  sudo dnf install dkms kernel-devel"
+    echo ""
+    echo "Then rebuild the module:"
+    echo "  sudo dkms install xrt-amdxdna/%{version} -k \$(uname -r)"
+    echo ""
+    exit 0
 fi
+dkms add -m xrt-amdxdna -v %{version} 2>&1 || :
 
 %posttrans dkms
 if command -v dkms &>/dev/null; then
