@@ -1,59 +1,43 @@
 # Building Locally
 
-Build and test the RPMs on a Fedora machine without uploading to COPR.
+Build and test the SRPMs on a Fedora machine without uploading to COPR.
 
 ## Prerequisites
 
 ```sh
-sudo dnf install mock rpmlint copr-cli rpmdevtools
-sudo usermod -aG mock $USER
-newgrp mock
+sudo dnf install git python3 rpm-build rpmdevtools copr-cli
 ```
 
-## Build xdna-driver first (it's a dependency)
+## Build xdna-driver SRPM
 
 ```sh
 cd ~/Projects/alessandrolattao/fastflowlm
 make srpm-xdna
-make mock-xdna
 ```
 
-RPMs will be in `out/xdna-driver/`.
+The SRPM will be in `out/`.
 
-## Build fastflowlm
-
-For mock to resolve `xdna-driver-devel`, create a local repo from the previously built RPMs:
+## Build fastflowlm SRPM
 
 ```sh
-mkdir -p /tmp/local-repo
-cp out/xdna-driver/*.rpm /tmp/local-repo/
-createrepo_c /tmp/local-repo/
-
-# Add the repo to the mock config (one-time setup)
-# Edit /etc/mock/fedora-rawhide-x86_64.cfg and add:
-#   config_opts['dnf.conf'] += """
-#   [local-xdna-driver]
-#   name=Local xdna-driver
-#   baseurl=file:///tmp/local-repo
-#   enabled=1
-#   gpgcheck=0
-#   """
-
 make srpm-flm
-make mock-flm
 ```
 
-## Lint
+The SRPM will be in `out/`.
+
+## Submit manually to COPR
 
 ```sh
-make lint
+# Build xdna-driver first (fastflowlm depends on it)
+make copr-xdna
+
+# Wait for the COPR build to succeed, then:
+make copr-flm
 ```
 
-## Quick install test (Fedora container)
+## Notes
 
-```sh
-podman run --rm -it \
-    -v $(pwd)/out:/rpms:ro \
-    fedora:latest \
-    bash -c "dnf install -y /rpms/xdna-driver/*.rpm /rpms/fastflowlm/*.rpm && flm --version"
-```
+- If `sources/xdna-driver` or `sources/fastflowlm` exist locally, the build uses
+  those instead of cloning from GitHub. Delete them to force a fresh clone.
+- The xdna-driver build downloads NPU firmware from the URLs in `tools/info.json`
+  at build time.
