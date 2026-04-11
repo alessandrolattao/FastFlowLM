@@ -195,9 +195,15 @@ echo ""
 %post dkms
 if command -v dkms &>/dev/null; then
     dkms add -m xrt-amdxdna -v %{version} 2>&1 || :
+fi
+
+%posttrans dkms
+if command -v dkms &>/dev/null; then
     for kv in $(ls /lib/modules/ 2>/dev/null | sort -V); do
         if [ -d /lib/modules/${kv}/build ]; then
-            dkms install -m xrt-amdxdna -v %{version} -k ${kv} 2>&1 || :
+            echo "Building amdxdna kernel module for ${kv}..."
+            dkms install -m xrt-amdxdna -v %{version} -k ${kv} 2>&1 || \
+                echo "WARNING: DKMS build failed for ${kv} - run 'sudo dkms install xrt-amdxdna/%{version} -k ${kv}' manually"
         fi
     done
 fi
