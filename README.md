@@ -7,13 +7,23 @@ RPM packaging for [FastFlowLM](https://github.com/FastFlowLM/FastFlowLM) on Fedo
 
 FastFlowLM runs large language models on AMD Ryzen AI XDNA2 NPUs.
 
-## Install on Fedora
+## Install
+
+**Fedora / AlmaLinux / EPEL:**
 
 ```sh
 sudo dnf copr enable alessandrolattao/fastflowlm
 sudo dnf install fastflowlm
 sudo flm-fetch-kernels
-flm validate
+flm run llama3.2:1b
+```
+
+**openSUSE Tumbleweed:**
+
+```sh
+sudo zypper addrepo https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/repo/opensuse-tumbleweed/alessandrolattao-fastflowlm-opensuse-tumbleweed.repo
+sudo zypper install fastflowlm
+sudo flm-fetch-kernels
 flm run llama3.2:1b
 ```
 
