@@ -23,13 +23,14 @@ BuildRequires:  pkgconfig
 BuildRequires:  git
 BuildRequires:  boost-devel >= 1.74
 %if 0%{?suse_version}
-# On openSUSE, boost-devel only pulls headers; per-component cmake configs
-# are in individual -devel packages needed by xrt cmake find_package calls.
-BuildRequires:  libboost_filesystem-devel
-BuildRequires:  libboost_system-devel
-BuildRequires:  libboost_program_options-devel
-BuildRequires:  libboost_thread-devel
-BuildRequires:  libboost_iostreams-devel
+# On openSUSE, boost-devel only pulls in headers (libboost_headers*-devel).
+# The per-component cmake configs live in versioned devel packages.
+# Update these when openSUSE Tumbleweed ships a new Boost version.
+BuildRequires:  libboost_filesystem1_90_0-devel
+BuildRequires:  libboost_system1_90_0-devel
+BuildRequires:  libboost_program_options1_90_0-devel
+BuildRequires:  libboost_thread1_90_0-devel
+BuildRequires:  libboost_iostreams1_90_0-devel
 %else
 BuildRequires:  boost-static
 %endif
