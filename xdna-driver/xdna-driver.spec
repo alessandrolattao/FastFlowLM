@@ -93,15 +93,6 @@ Automatically built for the installed kernel via DKMS.
 %autosetup -n %{name}-%{version}
 
 %build
-%if 0%{?suse_version}
-echo "=== BOOST DIAGNOSTIC ==="
-rpm -qa | grep -i boost | sort
-echo "=== CMAKE BOOST FILES ==="
-find /usr/lib64/cmake /usr/share/cmake -name "*boost*" -o -name "*Boost*" 2>/dev/null | sort
-echo "=== BOOST SO FILES ==="
-find /usr/lib64 -name "libboost*.so*" 2>/dev/null | sort
-echo "=== END DIAGNOSTIC ==="
-%endif
 cmake -S . -B build \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/opt/xilinx/xrt \
