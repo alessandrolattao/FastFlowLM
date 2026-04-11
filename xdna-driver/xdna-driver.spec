@@ -137,6 +137,7 @@ cat > "${DKMS_SRC}/dkms.conf" << 'DKMSEOF'
 PACKAGE_NAME=xrt-amdxdna
 PACKAGE_VERSION=%{version}
 BUILD_EXCLUSIVE_KERNEL_MIN=6.10
+BUILD_EXCLUSIVE_KERNEL_MAX=6.99
 
 MAKE="make -C driver/amdxdna KERNEL_SRC=${kernel_source_dir}"
 CLEAN="make -C driver/amdxdna clean KERNEL_SRC=${kernel_source_dir}"
