@@ -34,12 +34,12 @@ RUN zypper addrepo -cfp 90 "https://ftp.gwdg.de/pub/linux/misc/packman/suse/open
         systemtap-sdt-devel \
         libelf-devel \
         gnutls-devel \
-        libjson-glib-devel \
-        pybind11-devel \
+        json-glib-devel \
+        python-pybind11-common-devel \
         ninja \
         ffmpeg-devel \
         fftw3-devel \
-        libreadline-devel \
+        readline-devel \
         cargo \
         rust \
         rpm-build \

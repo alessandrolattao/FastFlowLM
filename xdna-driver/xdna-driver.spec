@@ -138,6 +138,12 @@ install -d %{buildroot}%{_sysconfdir}/OpenCL/vendors
 # Remove unnecessary files
 rm -rf %{buildroot}/opt/xilinx/xrt/share/doc 2>/dev/null || true
 
+# memlock limits for NPU buffer allocation
+install -Dm644 /dev/null \
+    %{buildroot}%{_sysconfdir}/security/limits.d/99-amdxdna.conf
+printf '# Allow unlimited locked memory for AMD XDNA NPU buffer allocation\n* soft memlock unlimited\n* hard memlock unlimited\n' \
+    > %{buildroot}%{_sysconfdir}/security/limits.d/99-amdxdna.conf
+
 %post
 /sbin/ldconfig
 
@@ -173,6 +179,7 @@ fi
 /opt/xilinx/xrt/version.json
 %config(noreplace) %{_sysconfdir}/OpenCL/vendors/xilinx.icd
 %config(noreplace) %{_sysconfdir}/ld.so.conf.d/xdna-driver.conf
+%config(noreplace) %{_sysconfdir}/security/limits.d/99-amdxdna.conf
 /usr/lib/firmware/amdnpu/
 
 %files devel
