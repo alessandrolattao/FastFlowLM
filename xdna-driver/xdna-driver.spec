@@ -221,6 +221,12 @@ fi
 dkms add -m xrt-amdxdna -v %{version} 2>&1 || :
 
 %posttrans dkms
+echo ""
+echo "================================================================"
+echo " xdna-driver: compiling AMD XDNA kernel module via DKMS"
+echo " This may take a few minutes - please wait..."
+echo "================================================================"
+echo ""
 if command -v dkms &>/dev/null; then
     for kv in $(ls /lib/modules/ 2>/dev/null | sort -V); do
         if [ -d /lib/modules/${kv}/build ]; then
@@ -232,10 +238,16 @@ if command -v dkms &>/dev/null; then
 fi
 # Regenerate initramfs to apply the dracut omit_drivers config for amdxdna
 if command -v dracut &>/dev/null; then
-    echo "Regenerating initramfs to exclude amdxdna (loads after rootfs mount)..."
+    echo ""
+    echo "Regenerating initramfs (this may take a moment)..."
     dracut -f --regenerate-all 2>&1 || \
         echo "WARNING: initramfs regeneration failed - run 'sudo dracut -f --regenerate-all' manually, then reboot"
 fi
+echo ""
+echo "================================================================"
+echo " Done! Reboot to activate the NPU driver."
+echo "================================================================"
+echo ""
 
 %preun dkms
 if command -v dkms &>/dev/null; then
