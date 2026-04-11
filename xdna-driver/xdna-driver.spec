@@ -22,7 +22,15 @@ BuildRequires:  pkgconfig
 %endif
 BuildRequires:  git
 BuildRequires:  boost-devel >= 1.74
-%if !0%{?suse_version}
+%if 0%{?suse_version}
+# On openSUSE, boost-devel only pulls headers; per-component cmake configs
+# are in individual -devel packages needed by xrt cmake find_package calls.
+BuildRequires:  libboost_filesystem-devel
+BuildRequires:  libboost_system-devel
+BuildRequires:  libboost_program_options-devel
+BuildRequires:  libboost_thread-devel
+BuildRequires:  libboost_iostreams-devel
+%else
 BuildRequires:  boost-static
 %endif
 BuildRequires:  libcurl-devel
@@ -93,14 +101,6 @@ Automatically built for the installed kernel via DKMS.
 %autosetup -n %{name}-%{version}
 
 %build
-# On openSUSE, Boost cmake component configs are not discoverable via
-# BoostConfig.cmake; fall back to the classic FindBoost module.
-%if 0%{?suse_version}
-BOOST_CMAKE_FLAG="-DBoost_NO_BOOST_CMAKE=ON"
-%else
-BOOST_CMAKE_FLAG=""
-%endif
-
 cmake -S . -B build \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/opt/xilinx/xrt \
@@ -109,8 +109,7 @@ cmake -S . -B build \
     -DBUILD_VXDNA=0 \
     -DXRT_ENABLE_DOCS=OFF \
     -DCMAKE_SKIP_RPATH=ON \
-    -DCMAKE_CXX_STANDARD=17 \
-    ${BOOST_CMAKE_FLAG}
+    -DCMAKE_CXX_STANDARD=17
 
 make -j$(nproc) -C build
 
