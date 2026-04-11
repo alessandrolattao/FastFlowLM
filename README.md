@@ -12,21 +12,21 @@ FastFlowLM runs large language models on AMD Ryzen AI XDNA2 NPUs.
 **Fedora / AlmaLinux / EPEL:**
 
 ```sh
-sudo dnf copr enable alessandrolattao/fastflowlm
-sudo dnf install fastflowlm
-sudo flm-fetch-kernels
-flm validate
-flm run llama3.2:1b
+sudo dnf copr enable alessandrolattao/fastflowlm  # add the COPR repo
+sudo dnf install fastflowlm                        # install driver + runtime (DKMS builds the kernel module)
+sudo flm-fetch-kernels                             # download proprietary NPU kernel binaries (requires internet)
+flm validate                                       # verify the NPU is detected and working
+flm run llama3.2:1b                                # run a model
 ```
 
 **openSUSE Tumbleweed:**
 
 ```sh
 sudo zypper addrepo https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/repo/opensuse-tumbleweed/alessandrolattao-fastflowlm-opensuse-tumbleweed.repo
-sudo zypper install fastflowlm
-sudo flm-fetch-kernels
-flm validate
-flm run llama3.2:1b
+sudo zypper install fastflowlm                     # install driver + runtime (DKMS builds the kernel module)
+sudo flm-fetch-kernels                             # download proprietary NPU kernel binaries (requires internet)
+flm validate                                       # verify the NPU is detected and working
+flm run llama3.2:1b                                # run a model
 ```
 
 ## Requirements
