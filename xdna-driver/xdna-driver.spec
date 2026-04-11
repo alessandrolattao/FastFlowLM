@@ -22,16 +22,7 @@ BuildRequires:  pkgconfig
 %endif
 BuildRequires:  git
 BuildRequires:  boost-devel >= 1.74
-%if 0%{?suse_version}
-# On openSUSE, boost-devel only pulls in headers (libboost_headers*-devel).
-# The per-component cmake configs live in versioned devel packages.
-# Update these when openSUSE Tumbleweed ships a new Boost version.
-BuildRequires:  libboost_filesystem1_90_0-devel
-BuildRequires:  libboost_system1_90_0-devel
-BuildRequires:  libboost_program_options1_90_0-devel
-BuildRequires:  libboost_thread1_90_0-devel
-BuildRequires:  libboost_iostreams1_90_0-devel
-%else
+%if !0%{?suse_version}
 BuildRequires:  boost-static
 %endif
 BuildRequires:  libcurl-devel
@@ -102,6 +93,15 @@ Automatically built for the installed kernel via DKMS.
 %autosetup -n %{name}-%{version}
 
 %build
+%if 0%{?suse_version}
+echo "=== BOOST DIAGNOSTIC ==="
+rpm -qa | grep -i boost | sort
+echo "=== CMAKE BOOST FILES ==="
+find /usr/lib64/cmake /usr/share/cmake -name "*boost*" -o -name "*Boost*" 2>/dev/null | sort
+echo "=== BOOST SO FILES ==="
+find /usr/lib64 -name "libboost*.so*" 2>/dev/null | sort
+echo "=== END DIAGNOSTIC ==="
+%endif
 cmake -S . -B build \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/opt/xilinx/xrt \
