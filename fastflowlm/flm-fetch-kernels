@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# flm-fetch-kernels
+# Downloads the proprietary FastFlowLM NPU kernel binaries from the official
+# GitHub release and installs them into /opt/fastflowlm.
+# Requires internet access and root privileges.
+#
+# License of the downloaded files: FastFlowLM Proprietary Binary License v2.0
+# See: https://github.com/FastFlowLM/FastFlowLM/blob/main/LICENSE_BINARY.txt
+
+set -euo pipefail
+
+FLM_INSTALL_DIR="/opt/fastflowlm"
+VERSION_FILE="${FLM_INSTALL_DIR}/VERSION"
+
+# Version is written by the spec during %install - single source of truth
+if [[ ! -f "${VERSION_FILE}" ]]; then
+    echo "Error: ${VERSION_FILE} not found. Is FastFlowLM installed correctly?" >&2
+    exit 1
+fi
+FLM_VERSION="$(cat "${VERSION_FILE}")"
+GITHUB_RELEASE_BASE="https://github.com/FastFlowLM/FastFlowLM/releases/download/v${FLM_VERSION}"
+DEB_PACKAGE="fastflowlm_${FLM_VERSION}_ubuntu24.04_amd64.deb"
+TMP_DIR="$(mktemp -d)"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+cleanup() {
+    rm -rf "${TMP_DIR}"
+}
+trap cleanup EXIT
+
+info()  { echo -e "${GREEN}[flm-fetch-kernels]${NC} $*"; }
+warn()  { echo -e "${YELLOW}[flm-fetch-kernels]${NC} $*"; }
+error() { echo -e "${RED}[flm-fetch-kernels] ERROR:${NC} $*" >&2; exit 1; }
+
+# Check root
+if [[ $EUID -ne 0 ]]; then
+    error "This script requires root privileges. Run it with sudo."
+fi
+
+# Check dependencies
+for cmd in curl ar tar; do
+    command -v "$cmd" &>/dev/null || error "Command not found: $cmd (install binutils and curl)"
+done
+
+info "FastFlowLM v${FLM_VERSION} - downloading proprietary NPU kernel binaries"
+echo ""
+echo "  Note: by downloading and installing these files you agree to the"
+echo "  FastFlowLM Proprietary Binary License v2.0."
+echo "  https://github.com/FastFlowLM/FastFlowLM/blob/main/LICENSE_BINARY.txt"
+echo ""
+read -r -p "Continue? [y/N] " REPLY
+[[ "$REPLY" =~ ^[YyYy]$ ]] || { warn "Aborted."; exit 0; }
+
+# Check if kernels are already installed
+if [[ -d "${FLM_INSTALL_DIR}/lib" ]] && ls "${FLM_INSTALL_DIR}/lib/"*.so &>/dev/null 2>&1; then
+    warn "NPU kernels already present in ${FLM_INSTALL_DIR}/lib/"
+    read -r -p "Overwrite? [y/N] " OVERWRITE
+    [[ "$OVERWRITE" =~ ^[YyYy]$ ]] || { info "Installation skipped."; exit 0; }
+fi
+
+info "Downloading ${DEB_PACKAGE}..."
+curl -L --progress-bar \
+    "${GITHUB_RELEASE_BASE}/${DEB_PACKAGE}" \
+    -o "${TMP_DIR}/${DEB_PACKAGE}"
+
+info "Extracting .deb package..."
+cd "${TMP_DIR}"
+ar x "${DEB_PACKAGE}"
+
+# The .deb contains data.tar.xz, data.tar.gz, or data.tar.zst
+if [[ -f "data.tar.xz" ]]; then
+    tar xf data.tar.xz
+elif [[ -f "data.tar.gz" ]]; then
+    tar xzf data.tar.gz
+elif [[ -f "data.tar.zst" ]]; then
+    command -v zstd &>/dev/null || error "zstd not found. Install: dnf install zstd"
+    zstd -d data.tar.zst -o data.tar
+    tar xf data.tar
+else
+    error "Unrecognised data.tar format in .deb"
+fi
+
+# Blobs are in opt/fastflowlm/lib/ and opt/fastflowlm/share/flm/xclbins/
+DEB_OPT="${TMP_DIR}/opt/fastflowlm"
+[[ -d "${DEB_OPT}" ]] || error "Unexpected .deb layout: /opt/fastflowlm not found"
+
+# Copy .so kernel libraries
+if [[ -d "${DEB_OPT}/lib" ]]; then
+    info "Installing kernel .so files into ${FLM_INSTALL_DIR}/lib/..."
+    mkdir -p "${FLM_INSTALL_DIR}/lib"
+    cp -v "${DEB_OPT}/lib/"*.so "${FLM_INSTALL_DIR}/lib/"
+    chmod 755 "${FLM_INSTALL_DIR}/lib/"*.so
+fi
+
+# Copy xclbin files (NPU binaries per model)
+if [[ -d "${DEB_OPT}/share/flm/xclbins" ]]; then
+    info "Installing xclbin files into ${FLM_INSTALL_DIR}/share/flm/xclbins/..."
+    mkdir -p "${FLM_INSTALL_DIR}/share/flm/xclbins"
+    cp -r "${DEB_OPT}/share/flm/xclbins/." "${FLM_INSTALL_DIR}/share/flm/xclbins/"
+fi
+
+# Copy libaiebu.a if present
+if [[ -f "${DEB_OPT}/lib/libaiebu.a" ]]; then
+    cp -v "${DEB_OPT}/lib/libaiebu.a" "${FLM_INSTALL_DIR}/lib/"
+fi
+
+echo ""
+info "Installation complete."
+info "Run 'flm validate' to verify the NPU configuration."

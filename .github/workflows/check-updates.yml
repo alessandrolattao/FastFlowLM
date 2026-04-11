@@ -1,0 +1,128 @@
+name: Check for upstream updates
+
+# Runs daily at 07:00 UTC.
+# When a new version is found, updates the spec file and pushes a commit.
+# The commit triggers the build-xdna-driver / build-fastflowlm workflows.
+#
+# Required secret: AUTO_UPDATE_TOKEN
+#   A GitHub Personal Access Token with 'contents: write' scope.
+#   Needed because pushes via GITHUB_TOKEN do not trigger other workflows.
+#   Create one at https://github.com/settings/tokens and add it under
+#   Settings > Secrets and variables > Actions.
+
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AUTO_UPDATE_TOKEN }}
+
+      # --- xdna-driver ---
+
+      - name: Check xdna-driver latest tag
+        id: xdna
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LATEST=$(gh api repos/amd/xdna-driver/tags --paginate \
+            --jq '.[].name' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+            | sort -rV \
+            | head -1)
+          CURRENT=$(awk '/^Version:/{print $2}' xdna-driver/xdna-driver.spec)
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "xdna-driver: current=$CURRENT latest=$LATEST"
+          if [ "$LATEST" != "$CURRENT" ]; then
+            echo "updated=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::xdna-driver update available: $CURRENT -> $LATEST"
+          fi
+
+      - name: Update xdna-driver spec
+        if: steps.xdna.outputs.updated == 'true'
+        env:
+          NEW_VER: ${{ steps.xdna.outputs.latest }}
+        run: |
+          SPEC=xdna-driver/xdna-driver.spec
+          DATE=$(date '+%a %b %-d %Y')
+
+          sed -i "s/^Version:.*/Version:        ${NEW_VER}/" "$SPEC"
+          sed -i "s/^Release:.*/Release:        1%{?dist}/" "$SPEC"
+
+          awk -v new_ver="$NEW_VER" -v date="$DATE" '
+            /^%changelog/ {
+              print
+              print "* " date " Alessandro Lattao <alessandro@lattao.com> - " new_ver "-1"
+              print "- Update to " new_ver
+              print ""
+              next
+            }
+            1
+          ' "$SPEC" > "${SPEC}.tmp" && mv "${SPEC}.tmp" "$SPEC"
+
+      # --- fastflowlm ---
+
+      - name: Check fastflowlm latest release
+        id: flm
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LATEST=$(gh api repos/FastFlowLM/FastFlowLM/releases/latest \
+            --jq '.tag_name' | sed 's/^v//')
+          CURRENT=$(awk '/^Version:/{print $2}' fastflowlm/fastflowlm.spec)
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "fastflowlm: current=$CURRENT latest=$LATEST"
+          if [ "$LATEST" != "$CURRENT" ]; then
+            echo "updated=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::fastflowlm update available: $CURRENT -> $LATEST"
+          fi
+
+      - name: Update fastflowlm spec
+        if: steps.flm.outputs.updated == 'true'
+        env:
+          NEW_VER: ${{ steps.flm.outputs.latest }}
+        run: |
+          SPEC=fastflowlm/fastflowlm.spec
+          DATE=$(date '+%a %b %-d %Y')
+
+          sed -i "s/^Version:.*/Version:        ${NEW_VER}/" "$SPEC"
+          sed -i "s/^Release:.*/Release:        1%{?dist}/" "$SPEC"
+
+          awk -v new_ver="$NEW_VER" -v date="$DATE" '
+            /^%changelog/ {
+              print
+              print "* " date " Alessandro Lattao <alessandro@lattao.com> - " new_ver "-1"
+              print "- Update to " new_ver
+              print ""
+              next
+            }
+            1
+          ' "$SPEC" > "${SPEC}.tmp" && mv "${SPEC}.tmp" "$SPEC"
+
+      # --- commit ---
+
+      - name: Commit and push
+        if: steps.xdna.outputs.updated == 'true' || steps.flm.outputs.updated == 'true'
+        env:
+          XDNA_UPDATED: ${{ steps.xdna.outputs.updated }}
+          XDNA_VER: ${{ steps.xdna.outputs.latest }}
+          FLM_UPDATED: ${{ steps.flm.outputs.updated }}
+          FLM_VER: ${{ steps.flm.outputs.latest }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          MSG="chore: bump"
+          [ "$XDNA_UPDATED" = "true" ] && MSG="$MSG xdna-driver to ${XDNA_VER}"
+          [ "$XDNA_UPDATED" = "true" ] && [ "$FLM_UPDATED" = "true" ] && MSG="$MSG,"
+          [ "$FLM_UPDATED"  = "true" ] && MSG="$MSG fastflowlm to ${FLM_VER}"
+
+          git add xdna-driver/xdna-driver.spec fastflowlm/fastflowlm.spec
+          git commit -m "$MSG"
+          git push

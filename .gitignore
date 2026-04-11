@@ -1,0 +1,6 @@
+out/
+sources/
+xdna-driver/xdna-driver-*/
+fastflowlm/fastflowlm-*/
+*.src.rpm
+*.tar.gz

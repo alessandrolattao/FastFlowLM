@@ -1,0 +1,56 @@
+# Full build environment for xdna-driver + fastflowlm on Fedora 43.
+# Use this for local builds without COPR or mock:
+#
+#   docker build -f docker/Dockerfile.fedora-43 -t fastflowlm-build:f43 .
+#   docker run --rm -v $(pwd)/out:/out fastflowlm-build:f43 make srpm-xdna srpm-flm
+
+FROM fedora:43
+
+# xdna-driver BuildRequires
+RUN dnf install -y \
+        cmake \
+        make \
+        gcc-c++ \
+        pkgconfig \
+        git \
+        python3 \
+        boost-devel \
+        boost-static \
+        libcurl-devel \
+        libdrm-devel \
+        libffi-devel \
+        libuuid-devel \
+        libyaml-devel \
+        ncurses-devel \
+        ocl-icd-devel \
+        opencl-headers \
+        openssl-devel \
+        protobuf-devel \
+        protobuf-compiler \
+        python3-devel \
+        rapidjson-devel \
+        systemtap-sdt-devel \
+        elfutils-devel \
+        gnutls-devel \
+        json-glib-devel \
+        pybind11-devel \
+    && \
+    # fastflowlm BuildRequires
+    dnf install -y \
+        ninja-build \
+        ffmpeg-free-devel \
+        fftw-devel \
+        readline-devel \
+        cargo \
+        rust \
+    && \
+    # SRPM tools
+    dnf install -y \
+        rpm-build \
+        copr-cli \
+    && dnf clean all
+
+WORKDIR /build
+COPY . .
+
+CMD ["make", "srpm-xdna", "srpm-flm"]

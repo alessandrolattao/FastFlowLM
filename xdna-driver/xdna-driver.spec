@@ -1,0 +1,187 @@
+%global debug_package %{nil}
+%global __os_install_post %{nil}
+
+Name:           xdna-driver
+Version:        2.21.75
+Release:        1%{?dist}
+Summary:        AMD XDNA userspace driver, XRT libraries, NPU firmware, and DKMS kernel module
+
+License:        Apache-2.0
+URL:            https://github.com/amd/xdna-driver
+Source0:        %{name}-%{version}.tar.gz
+
+ExclusiveArch:  x86_64
+
+BuildRequires:  cmake >= 3.19
+BuildRequires:  make
+BuildRequires:  gcc-c++
+BuildRequires:  pkgconfig
+BuildRequires:  git
+BuildRequires:  boost-devel >= 1.74
+BuildRequires:  boost-static
+BuildRequires:  libcurl-devel
+BuildRequires:  libdrm-devel
+BuildRequires:  libffi-devel
+BuildRequires:  libuuid-devel
+BuildRequires:  libyaml-devel
+BuildRequires:  ncurses-devel
+BuildRequires:  ocl-icd-devel
+BuildRequires:  opencl-headers
+BuildRequires:  openssl-devel
+BuildRequires:  protobuf-devel
+BuildRequires:  protobuf-compiler
+BuildRequires:  python3-devel
+BuildRequires:  rapidjson-devel
+BuildRequires:  systemtap-sdt-devel
+BuildRequires:  elfutils-devel
+BuildRequires:  gnutls-devel
+BuildRequires:  json-glib-devel
+BuildRequires:  pybind11-devel
+
+Requires:       dkms
+Requires:       %{name}-dkms = %{version}-%{release}
+
+%description
+AMD XDNA userspace driver stack for Ryzen AI XDNA2 NPUs.
+
+Includes:
+  - XRT userspace libraries (libxrt_coreutil, libxrt_driver_xdna, etc.)
+  - AMD XDNA SHIM (userspace NPU driver plugin)
+  - NPU firmware for all supported XDNA2 devices (npu1/npu3/npu4/npu5)
+  - DKMS kernel module (amdxdna) built automatically at install time
+
+Required by fastflowlm. Kernel module requires kernel >= 6.10.
+
+%package devel
+Summary:        Development headers for xdna-driver
+Requires:       %{name} = %{version}-%{release}
+
+%description devel
+Headers for building against the xdna-driver XRT libraries.
+Used as BuildRequires for fastflowlm.
+
+%package dkms
+Summary:        DKMS source for the amdxdna kernel module
+Requires:       dkms
+Requires:       kernel-devel
+
+%description dkms
+Kernel module source for the AMD XDNA2 NPU driver (amdxdna).
+Automatically built for the installed kernel via DKMS.
+
+%prep
+%autosetup -n %{name}-%{version}
+
+%build
+cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/opt/xilinx/xrt \
+    -DCMAKE_INSTALL_LIBDIR=lib64 \
+    -DSKIP_KMOD=1 \
+    -DBUILD_VXDNA=0 \
+    -DXRT_ENABLE_DOCS=OFF \
+    -DCMAKE_SKIP_RPATH=ON
+
+make -j$(nproc) -C build
+
+%install
+make -C build DESTDIR=%{buildroot} install
+
+# Symlink lib -> lib64 for compatibility (FastFlowLM expects /opt/xilinx/xrt/lib)
+ln -sf lib64 %{buildroot}/opt/xilinx/xrt/lib
+
+# Firmware
+find firmware/amdnpu -type f | while read f; do
+    dest=%{buildroot}/usr/lib/firmware/$(dirname "$f")
+    install -d "$dest"
+    install -m644 "$f" "$dest/"
+done
+
+# DKMS: install driver source to /usr/src/xrt-amdxdna-VERSION/
+DKMS_SRC=%{buildroot}/usr/src/xrt-amdxdna-%{version}
+install -d "${DKMS_SRC}/driver"
+cp -r src/driver/amdxdna "${DKMS_SRC}/driver/amdxdna"
+
+# dkms.conf
+cat > "${DKMS_SRC}/dkms.conf" << 'DKMSEOF'
+PACKAGE_NAME=xrt-amdxdna
+PACKAGE_VERSION=%{version}
+BUILD_EXCLUSIVE_KERNEL_MIN=6.10
+
+MAKE="make -C driver/amdxdna KERNEL_SRC=${kernel_source_dir}"
+CLEAN="make -C driver/amdxdna clean KERNEL_SRC=${kernel_source_dir}"
+
+BUILT_MODULE_NAME[0]=amdxdna
+BUILT_MODULE_LOCATION[0]="driver/amdxdna/build/driver/amdxdna"
+DEST_MODULE_LOCATION[0]="/kernel/extras"
+
+AUTOINSTALL="yes"
+
+PRE_BUILD="./configure_kernel.sh"
+DKMSEOF
+
+install -m755 src/driver/tools/configure_kernel.sh \
+    "${DKMS_SRC}/configure_kernel.sh"
+
+# Register lib64 with the dynamic linker
+install -Dm644 /dev/null \
+    %{buildroot}%{_sysconfdir}/ld.so.conf.d/xdna-driver.conf
+echo "/opt/xilinx/xrt/lib64" \
+    > %{buildroot}%{_sysconfdir}/ld.so.conf.d/xdna-driver.conf
+
+# OpenCL ICD (if not already installed by cmake)
+install -d %{buildroot}%{_sysconfdir}/OpenCL/vendors
+[ -f %{buildroot}/etc/OpenCL/vendors/xilinx.icd ] || \
+    echo "/opt/xilinx/xrt/lib64/libxilinxopencl.so.2" \
+    > %{buildroot}%{_sysconfdir}/OpenCL/vendors/xilinx.icd
+
+# Remove unnecessary files
+rm -rf %{buildroot}/opt/xilinx/xrt/share/doc 2>/dev/null || true
+
+%post
+/sbin/ldconfig
+
+%postun
+/sbin/ldconfig
+
+%post dkms
+if command -v dkms &>/dev/null; then
+    dkms add -m xrt-amdxdna -v %{version} 2>&1 || :
+    for kv in $(ls /lib/modules/ 2>/dev/null | sort -V); do
+        if [ -d /lib/modules/${kv}/build ]; then
+            dkms install -m xrt-amdxdna -v %{version} -k ${kv} 2>&1 || :
+        fi
+    done
+fi
+
+%preun dkms
+if command -v dkms &>/dev/null; then
+    dkms remove -m xrt-amdxdna -v %{version} --all 2>&1 || :
+fi
+
+%files
+%license xrt/LICENSE
+%dir /opt/xilinx/xrt
+/opt/xilinx/xrt/bin/
+/opt/xilinx/xrt/lib64/
+/opt/xilinx/xrt/lib
+/opt/xilinx/xrt/python/
+/opt/xilinx/xrt/share/
+/opt/xilinx/xrt/setup.sh
+/opt/xilinx/xrt/setup.csh
+/opt/xilinx/xrt/setup.fish
+/opt/xilinx/xrt/version.json
+%config(noreplace) %{_sysconfdir}/OpenCL/vendors/xilinx.icd
+%config(noreplace) %{_sysconfdir}/ld.so.conf.d/xdna-driver.conf
+/usr/lib/firmware/amdnpu/
+
+%files devel
+/opt/xilinx/xrt/include/
+
+%files dkms
+/usr/src/xrt-amdxdna-%{version}/
+
+%changelog
+* Sat Apr 11 2026 Alessandro Lattao <alessandro@lattao.com> - 2.21.75-1
+- Initial packaging from amd/xdna-driver (replaces xrt-npu)
+- Includes XRT userspace, AMD XDNA SHIM, NPU firmware, DKMS kernel module
