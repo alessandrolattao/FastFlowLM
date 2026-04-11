@@ -1,7 +1,5 @@
 name: Build RPMs
 
-# Triggers on push to main (builds artifacts) or on a version tag (creates a GitHub Release).
-
 on:
   push:
     branches: [main]
@@ -9,8 +7,6 @@ on:
       - 'xdna-driver/**'
       - 'fastflowlm/**'
       - 'Makefile'
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -19,10 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: fedora:latest
-
-    outputs:
-      xdna_ver: ${{ steps.ver.outputs.xdna }}
-      flm_ver: ${{ steps.ver.outputs.flm }}
 
     steps:
       - uses: actions/checkout@v4
@@ -33,77 +25,10 @@ jobs:
       - name: Build SRPMs
         run: make srpm-xdna srpm-flm
 
-      - name: Read versions
-        id: ver
-        run: |
-          echo "xdna=$(awk '/^Version:/{print $2}' xdna-driver/xdna-driver.spec)" >> "$GITHUB_OUTPUT"
-          echo "flm=$(awk '/^Version:/{print $2}' fastflowlm/fastflowlm.spec)" >> "$GITHUB_OUTPUT"
-
       - uses: actions/upload-artifact@v4
         with:
           name: srpms
           path: out/*.src.rpm
-
-  build:
-    name: Build RPMs (${{ matrix.os }})
-    needs: srpm
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: fc42
-            image: ghcr.io/alessandrolattao/fastflowlm-build:fedora-42
-          - os: fc43
-            image: ghcr.io/alessandrolattao/fastflowlm-build:fedora-43
-          - os: fc44
-            image: ghcr.io/alessandrolattao/fastflowlm-build:fedora-44
-          - os: rawhide
-            image: ghcr.io/alessandrolattao/fastflowlm-build:fedora-rawhide
-          - os: epel10
-            image: ghcr.io/alessandrolattao/fastflowlm-build:epel-10
-          - os: opensuse-tumbleweed
-            image: ghcr.io/alessandrolattao/fastflowlm-build:opensuse-tumbleweed
-
-    container:
-      image: ${{ matrix.image }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: srpms
-          path: srpms/
-
-      - name: Install xdna-driver build deps
-        run: dnf builddep -y srpms/xdna-driver-*.src.rpm
-
-      - name: Build xdna-driver RPMs
-        run: |
-          mkdir -p rpms
-          rpmbuild --rebuild srpms/xdna-driver-*.src.rpm \
-            --define "_rpmdir $(pwd)/rpms" \
-            --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm"
-
-      - name: Install xdna-driver-devel for fastflowlm build
-        run: dnf install -y rpms/xdna-driver-devel-*.rpm
-
-      - name: Install fastflowlm build deps
-        run: dnf builddep -y srpms/fastflowlm-*.src.rpm
-
-      - name: Build fastflowlm RPMs
-        run: |
-          rpmbuild --rebuild srpms/fastflowlm-*.src.rpm \
-            --define "_rpmdir $(pwd)/rpms" \
-            --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: rpms-${{ matrix.os }}
-          path: rpms/*.rpm
 
   copr:
     name: Submit to COPR
@@ -131,34 +56,7 @@ jobs:
             "$COPR_LOGIN" "$COPR_TOKEN" > ~/.config/copr
 
       - name: Submit xdna-driver to COPR
-        run: copr-cli build alessandrolattao/fastflowlm srpms/xdna-driver-*.src.rpm --nowait
+        run: copr-cli build alessandrolattao/fastflowlm srpms/xdna-driver-*.src.rpm
 
       - name: Submit fastflowlm to COPR
         run: copr-cli build alessandrolattao/fastflowlm srpms/fastflowlm-*.src.rpm --nowait
-
-  release:
-    name: Create GitHub Release
-    needs: [srpm, build]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: rpms-*
-          merge-multiple: true
-          path: rpms/
-
-      - name: Create release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          XDNA_VER: ${{ needs.srpm.outputs.xdna_ver }}
-          FLM_VER: ${{ needs.srpm.outputs.flm_ver }}
-          TAG: ${{ github.ref_name }}
-        run: |
-          gh release create "$TAG" rpms/*.rpm \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "FastFlowLM ${FLM_VER} / xdna-driver ${XDNA_VER}" \
-            --notes "RPMs built for Fedora 43, 44 and Rawhide (x86_64)."

@@ -21,15 +21,31 @@ Source1:        flm-fetch-kernels
 ExclusiveArch:  x86_64
 
 BuildRequires:  cmake >= 3.22
+%if 0%{?suse_version}
+BuildRequires:  ninja
+%else
 BuildRequires:  ninja-build
+%endif
 BuildRequires:  gcc-c++
+%if 0%{?suse_version}
+BuildRequires:  pkg-config
+%else
 BuildRequires:  pkgconfig
+%endif
 BuildRequires:  git
+%if 0%{?suse_version}
+BuildRequires:  ffmpeg-devel
+%else
 BuildRequires:  ffmpeg-free-devel
+%endif
 BuildRequires:  boost-devel
 BuildRequires:  libcurl-devel
 BuildRequires:  libdrm-devel
+%if 0%{?suse_version}
+BuildRequires:  fftw3-devel
+%else
 BuildRequires:  fftw-devel
+%endif
 BuildRequires:  readline-devel
 BuildRequires:  libuuid-devel
 BuildRequires:  cargo

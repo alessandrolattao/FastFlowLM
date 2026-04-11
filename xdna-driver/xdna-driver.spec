@@ -15,10 +15,16 @@ ExclusiveArch:  x86_64
 BuildRequires:  cmake >= 3.19
 BuildRequires:  make
 BuildRequires:  gcc-c++
+%if 0%{?suse_version}
+BuildRequires:  pkg-config
+%else
 BuildRequires:  pkgconfig
+%endif
 BuildRequires:  git
 BuildRequires:  boost-devel >= 1.74
+%if !0%{?suse_version}
 BuildRequires:  boost-static
+%endif
 BuildRequires:  libcurl-devel
 BuildRequires:  libdrm-devel
 BuildRequires:  libffi-devel
@@ -27,16 +33,30 @@ BuildRequires:  libyaml-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  ocl-icd-devel
 BuildRequires:  opencl-headers
+%if 0%{?suse_version}
+BuildRequires:  libopenssl-devel
+%else
 BuildRequires:  openssl-devel
+%endif
 BuildRequires:  protobuf-devel
+%if !0%{?suse_version}
 BuildRequires:  protobuf-compiler
+%endif
 BuildRequires:  python3-devel
 BuildRequires:  rapidjson-devel
 BuildRequires:  systemtap-sdt-devel
+%if 0%{?suse_version}
+BuildRequires:  libelf-devel
+%else
 BuildRequires:  elfutils-devel
+%endif
 BuildRequires:  gnutls-devel
 BuildRequires:  json-glib-devel
+%if 0%{?suse_version}
+BuildRequires:  python-pybind11-common-devel
+%else
 BuildRequires:  pybind11-devel
+%endif
 
 Requires:       dkms
 Requires:       %{name}-dkms = %{version}-%{release}
