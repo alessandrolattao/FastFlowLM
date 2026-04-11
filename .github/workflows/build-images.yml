@@ -25,6 +25,10 @@ jobs:
             tag: fedora-44
           - file: docker/Dockerfile.fedora-rawhide
             tag: fedora-rawhide
+          - file: docker/Dockerfile.epel-10
+            tag: epel-10
+          - file: docker/Dockerfile.opensuse-tumbleweed
+            tag: opensuse-tumbleweed
 
     steps:
       - uses: actions/checkout@v4

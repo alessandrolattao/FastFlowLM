@@ -1,0 +1,46 @@
+# Build environment for xdna-driver + fastflowlm on openSUSE Tumbleweed.
+#
+# Uses Packman repository for ffmpeg.
+#
+# Used as a CI image (pushed to ghcr.io) and for local builds:
+#   docker build -f docker/Dockerfile.opensuse-tumbleweed -t fastflowlm-build:opensuse-tumbleweed .
+#   docker run --rm -v $(pwd):/build -w /build fastflowlm-build:opensuse-tumbleweed make srpm-xdna srpm-flm
+
+FROM opensuse/tumbleweed
+
+# Add Packman for ffmpeg
+RUN zypper addrepo -cfp 90 "https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Tumbleweed/" packman && \
+    zypper --gpg-auto-import-keys refresh && \
+    zypper install -y \
+        cmake \
+        make \
+        gcc-c++ \
+        pkg-config \
+        git \
+        python3 \
+        boost-devel \
+        libcurl-devel \
+        libdrm-devel \
+        libffi-devel \
+        libuuid-devel \
+        libyaml-devel \
+        ncurses-devel \
+        ocl-icd-devel \
+        opencl-headers \
+        libopenssl-devel \
+        protobuf-devel \
+        python3-devel \
+        rapidjson-devel \
+        systemtap-sdt-devel \
+        libelf-devel \
+        gnutls-devel \
+        libjson-glib-devel \
+        pybind11-devel \
+        ninja \
+        ffmpeg-devel \
+        fftw3-devel \
+        libreadline-devel \
+        cargo \
+        rust \
+        rpm-build \
+    && zypper clean --all

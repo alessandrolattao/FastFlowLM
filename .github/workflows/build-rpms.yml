@@ -61,6 +61,10 @@ jobs:
             image: ghcr.io/alessandrolattao/fastflowlm-build:fedora-44
           - os: rawhide
             image: ghcr.io/alessandrolattao/fastflowlm-build:fedora-rawhide
+          - os: epel10
+            image: ghcr.io/alessandrolattao/fastflowlm-build:epel-10
+          - os: opensuse-tumbleweed
+            image: ghcr.io/alessandrolattao/fastflowlm-build:opensuse-tumbleweed
 
     container:
       image: ${{ matrix.image }}
