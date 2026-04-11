@@ -93,6 +93,14 @@ Automatically built for the installed kernel via DKMS.
 %autosetup -n %{name}-%{version}
 
 %build
+# On openSUSE, Boost cmake component configs are not discoverable via
+# BoostConfig.cmake; fall back to the classic FindBoost module.
+%if 0%{?suse_version}
+BOOST_CMAKE_FLAG="-DBoost_NO_BOOST_CMAKE=ON"
+%else
+BOOST_CMAKE_FLAG=""
+%endif
+
 cmake -S . -B build \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/opt/xilinx/xrt \
@@ -100,7 +108,9 @@ cmake -S . -B build \
     -DSKIP_KMOD=1 \
     -DBUILD_VXDNA=0 \
     -DXRT_ENABLE_DOCS=OFF \
-    -DCMAKE_SKIP_RPATH=ON
+    -DCMAKE_SKIP_RPATH=ON \
+    -DCMAKE_CXX_STANDARD=17 \
+    ${BOOST_CMAKE_FLAG}
 
 make -j$(nproc) -C build
 
