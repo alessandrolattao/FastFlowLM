@@ -39,9 +39,9 @@ flm run llama3.2:1b
 ## Requirements
 
 - AMD Ryzen AI CPU with XDNA2 NPU (Strix, Strix Halo, Kraken, Gorgon Point)
-- Linux kernel 6.10 - 6.x (kernel 7+ not yet supported by xdna-driver)
+- Linux kernel 6.10 - 6.x for DKMS module build (kernel 7+ has amdxdna built-in, no DKMS needed)
 - NPU firmware >= 1.1.0.0 (installed automatically by `xdna-driver`)
-- Unlimited memlock limit (set automatically by `xdna-driver` in `/etc/security/limits.d/99-amdxdna.conf`, log out and back in after install)
+- Unlimited memlock limit: the NPU requires large DMA buffers locked in physical RAM to load model weights. The default kernel limit (64 KB) is far too low. `xdna-driver` sets this automatically via `/etc/security/limits.d/99-amdxdna.conf` — log out and back in after install for it to take effect
 
 ## About `flm-fetch-kernels`
 
