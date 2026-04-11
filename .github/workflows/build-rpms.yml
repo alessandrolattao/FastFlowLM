@@ -99,6 +99,37 @@ jobs:
           name: rpms-${{ matrix.os }}
           path: rpms/*.rpm
 
+  copr:
+    name: Submit to COPR
+    needs: srpm
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: srpms
+          path: srpms/
+
+      - name: Install copr-cli
+        run: dnf install -y copr-cli
+
+      - name: Configure copr-cli
+        env:
+          COPR_LOGIN: ${{ secrets.COPR_LOGIN }}
+          COPR_TOKEN: ${{ secrets.COPR_TOKEN }}
+        run: |
+          mkdir -p ~/.config
+          printf '[copr-cli]\nlogin = %s\nusername = alessandrolattao\ntoken = %s\ncopr_url = https://copr.fedorainfracloud.org\n' \
+            "$COPR_LOGIN" "$COPR_TOKEN" > ~/.config/copr
+
+      - name: Submit xdna-driver to COPR
+        run: copr-cli build alessandrolattao/fastflowlm srpms/xdna-driver-*.src.rpm --nowait
+
+      - name: Submit fastflowlm to COPR
+        run: copr-cli build alessandrolattao/fastflowlm srpms/fastflowlm-*.src.rpm --nowait
+
   release:
     name: Create GitHub Release
     needs: [srpm, build]
