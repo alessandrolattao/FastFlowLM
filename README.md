@@ -1,4 +1,4 @@
-# fastflowlm RPM packaging
+# FastFlowLM RPM packaging
 
 RPM packaging for [FastFlowLM](https://github.com/FastFlowLM/FastFlowLM) on Fedora Linux.
 
