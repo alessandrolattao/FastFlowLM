@@ -2,8 +2,8 @@
 
 RPM packaging for [FastFlowLM](https://github.com/FastFlowLM/FastFlowLM) on Fedora Linux.
 
-[![xdna-driver build](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcopr.fedorainfracloud.org%2Fapi_3%2Fpackage%3Fownername%3Dalessandrolattao%26projectname%3Dfastflowlm%26packagename%3Dxdna-driver%26with_latest_build%3DTrue&query=%24.builds.latest.state&label=xdna-driver&logo=fedora&logoColor=white&labelColor=294172)](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/xdna-driver/)
-[![fastflowlm build](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcopr.fedorainfracloud.org%2Fapi_3%2Fpackage%3Fownername%3Dalessandrolattao%26projectname%3Dfastflowlm%26packagename%3Dfastflowlm%26with_latest_build%3DTrue&query=%24.builds.latest.state&label=fastflowlm&logo=fedora&logoColor=white&labelColor=294172)](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/fastflowlm/)
+[![xdna-driver build](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcopr.fedorainfracloud.org%2Fapi_3%2Fpackage%3Fownername%3Dalessandrolattao%26projectname%3Dfastflowlm%26packagename%3Dxdna-driver%26with_latest_build%3DTrue&query=%24.builds.latest.state&label=xdna-driver&color=brightgreen)](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/xdna-driver/)
+[![fastflowlm build](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcopr.fedorainfracloud.org%2Fapi_3%2Fpackage%3Fownername%3Dalessandrolattao%26projectname%3Dfastflowlm%26packagename%3Dfastflowlm%26with_latest_build%3DTrue&query=%24.builds.latest.state&label=fastflowlm&color=brightgreen)](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/fastflowlm/)
 
 FastFlowLM runs large language models on AMD Ryzen AI XDNA2 NPUs.
 
