@@ -148,7 +148,7 @@ echo ""
 
 %changelog
 * Thu Apr 16 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.39-1
-- Update to 0.9.39
+- Update to 0.9.39 (includes Gemma 4 model support)
 
 * Sat Apr 11 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.38-1
 - Initial Fedora packaging (source-only, MIT runtime)
