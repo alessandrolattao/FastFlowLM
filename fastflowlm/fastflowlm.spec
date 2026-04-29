@@ -6,7 +6,7 @@
 %global npu_version 32.0.203.304
 
 Name:           fastflowlm
-Version:        0.9.39
+Version:        0.9.40
 Release:        1%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
@@ -147,6 +147,9 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Wed Apr 29 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.40-1
+- Update to 0.9.40
+
 * Thu Apr 16 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.39-1
 - Update to 0.9.39 (includes Gemma 4 model support)
 
