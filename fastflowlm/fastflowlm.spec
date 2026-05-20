@@ -7,7 +7,7 @@
 
 Name:           fastflowlm
 Version:        0.9.42
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -117,16 +117,10 @@ echo "%{version}" > %{buildroot}%{_prefix}/VERSION
 echo ""
 echo "FastFlowLM installed."
 echo ""
-echo "To run NPU models, download the proprietary kernel binaries:"
+echo "Next step: download the proprietary NPU kernel binaries from the"
+echo "official release (requires internet access to github.com):"
 echo ""
 echo "  sudo flm-fetch-kernels"
-echo ""
-echo "Requires internet access to github.com/FastFlowLM/FastFlowLM"
-echo ""
-echo "Other requirements:"
-echo "  - xdna-driver package (installs amdxdna kernel module via DKMS)"
-echo "  - NPU firmware >= 1.1.0.0"
-echo "  - unlimited memlock in /etc/security/limits.conf"
 echo ""
 
 %files
@@ -147,6 +141,12 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Wed May 20 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.42-3
+- %%post: drop stale references to DKMS and to manual memlock setup
+  (memlock is now configured by xdna-driver) and reduce the message
+  to the only action the user still needs to take: running
+  flm-fetch-kernels to download the proprietary NPU kernel binaries
+
 * Wed May 20 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.42-2
 - Fix install paths: upstream moved .so libraries from lib/ to lib64/flm/
 
