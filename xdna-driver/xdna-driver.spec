@@ -3,7 +3,7 @@
 
 Name:           xdna-driver
 Version:        2.21.75
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        AMD XDNA userspace driver, XRT libraries, NPU firmware, and DKMS kernel module
 
 License:        Apache-2.0
@@ -59,7 +59,14 @@ BuildRequires:  pybind11-devel
 %endif
 
 Requires:       dkms
-Requires:       %{name}-dkms = %{version}-%{release}
+# DKMS module is only needed on kernel < 7. On kernel 7+ the amdxdna driver
+# is provided in-tree, so the -dkms subpackage is unnecessary (and not
+# buildable). The rich Recommends pulls in -dkms only when a kernel < 7.0
+# is installed. The "kernel" capability is provided by:
+#   - kernel-core on Fedora and RHEL/AlmaLinux/Rocky (+ EPEL)
+#   - kernel-default on openSUSE Tumbleweed
+# all verified via the corresponding container images.
+Recommends:     (%{name}-dkms = %{version}-%{release} if kernel < 7.0)
 
 %description
 AMD XDNA userspace driver stack for Ryzen AI XDNA2 NPUs.
@@ -86,8 +93,11 @@ Requires:       dkms
 Requires:       kernel-devel
 
 %description dkms
-Kernel module source for the AMD XDNA2 NPU driver (amdxdna).
-Automatically built for the installed kernel via DKMS.
+Kernel module source for the AMD XDNA2 NPU driver (amdxdna), built via DKMS.
+
+ONLY NEEDED ON KERNEL < 7. On Fedora 44 and newer (kernel 7.x) the amdxdna
+driver is provided in-tree by the kernel itself; the main xdna-driver
+package will not pull this subpackage in on those systems.
 
 On RHEL/AlmaLinux/Rocky Linux, enable EPEL before installing this package:
   sudo dnf install epel-release
@@ -272,6 +282,14 @@ fi
 %config(noreplace) %{_sysconfdir}/dracut.conf.d/99-amdxdna.conf
 
 %changelog
+* Wed May 20 2026 Alessandro Lattao <alessandro@lattao.com> - 2.21.75-2
+- Make xdna-driver-dkms a conditional weak dependency of the main package
+  using a boolean Recommends: (xdna-driver-dkms if kernel < 7.0)
+- On kernel 7+ the amdxdna driver is provided in-tree, so the -dkms
+  subpackage is no longer pulled in automatically (works on Fedora/RHEL
+  via kernel-core and on openSUSE via kernel-default, both of which
+  Provide "kernel = <ver>")
+
 * Sat Apr 11 2026 Alessandro Lattao <alessandro@lattao.com> - 2.21.75-1
 - Initial packaging from amd/xdna-driver (replaces xrt-npu)
 - Includes XRT userspace, AMD XDNA SHIM, NPU firmware, DKMS kernel module
