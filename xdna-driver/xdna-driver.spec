@@ -3,7 +3,7 @@
 
 Name:           xdna-driver
 Version:        2.21.75
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        AMD XDNA userspace driver, XRT libraries, NPU firmware, and DKMS kernel module
 
 License:        Apache-2.0
@@ -155,7 +155,6 @@ BUILD_EXCLUSIVE_KERNEL_MIN=6.10
 BUILD_EXCLUSIVE_KERNEL_MAX=6.99
 
 MAKE="make -C driver/amdxdna KERNEL_SRC=${kernel_source_dir}"
-CLEAN="make -C driver/amdxdna clean KERNEL_SRC=${kernel_source_dir}"
 
 BUILT_MODULE_NAME[0]=amdxdna
 BUILT_MODULE_LOCATION[0]="driver/amdxdna/build/driver/amdxdna"
@@ -228,34 +227,80 @@ if ! command -v dkms &>/dev/null; then
     echo ""
     exit 0
 fi
-dkms add -m xrt-amdxdna -v %{version} 2>&1 || :
+# Register the source tree with DKMS. Skip if already registered (upgrade
+# path: the previous package version has the same source under the same
+# name/version).
+if ! dkms status -m xrt-amdxdna -v %{version} 2>/dev/null | grep -q xrt-amdxdna; then
+    dkms add -m xrt-amdxdna -v %{version} 2>&1 || :
+fi
 
 %posttrans dkms
+if ! command -v dkms &>/dev/null; then
+    exit 0
+fi
+
+# The OOT amdxdna module only builds on kernel >= 6.10 and < 7.0
+# (BUILD_EXCLUSIVE_KERNEL_MIN/MAX in dkms.conf). On kernel 7+ the driver
+# is provided in-tree by the kernel itself, so there is nothing to build
+# here. Filter the installed kernels to those the module can actually
+# compile against before invoking DKMS, so we don't produce noisy
+# "BUILD_EXCLUSIVE does not match" warnings or a misleading
+# "Done! Reboot to activate" message.
+target_kernels=""
+skipped_intree=""
+for kv in $(ls /lib/modules/ 2>/dev/null | sort -V); do
+    [ -d "/lib/modules/${kv}/build" ] || continue
+    kv_major=${kv%%.*}
+    if [ "$kv_major" -ge 7 ]; then
+        skipped_intree="${skipped_intree} ${kv}"
+    else
+        target_kernels="${target_kernels} ${kv}"
+    fi
+done
+
+if [ -z "$target_kernels" ]; then
+    echo ""
+    echo "xdna-driver-dkms: no kernel < 7.0 with build headers found."
+    if [ -n "$skipped_intree" ]; then
+        echo "The amdxdna driver is provided in-tree on the installed kernel(s):"
+        for kv in $skipped_intree; do echo "  - ${kv}"; done
+        echo "The DKMS module is not required and was not built."
+    fi
+    echo ""
+    exit 0
+fi
+
 echo ""
 echo "================================================================"
 echo " xdna-driver: compiling AMD XDNA kernel module via DKMS"
 echo " This may take a few minutes - please wait..."
 echo "================================================================"
 echo ""
-if command -v dkms &>/dev/null; then
-    for kv in $(ls /lib/modules/ 2>/dev/null | sort -V); do
-        if [ -d /lib/modules/${kv}/build ]; then
-            echo "Building amdxdna kernel module for ${kv}..."
-            dkms install -m xrt-amdxdna -v %{version} -k ${kv} 2>&1 || \
-                echo "WARNING: DKMS build failed for ${kv} - run 'sudo dkms install xrt-amdxdna/%{version} -k ${kv}' manually"
-        fi
-    done
-fi
-# Regenerate initramfs to apply the dracut omit_drivers config for amdxdna
-if command -v dracut &>/dev/null; then
+
+built_any=0
+for kv in $target_kernels; do
+    echo "Building amdxdna kernel module for ${kv}..."
+    if dkms install -m xrt-amdxdna -v %{version} -k "${kv}" 2>&1; then
+        built_any=1
+    else
+        echo "WARNING: DKMS build failed for ${kv} - run 'sudo dkms install xrt-amdxdna/%{version} -k ${kv}' manually"
+    fi
+done
+
+if [ "$built_any" -eq 1 ] && command -v dracut &>/dev/null; then
     echo ""
     echo "Regenerating initramfs (this may take a moment)..."
     dracut -f --regenerate-all 2>&1 || \
         echo "WARNING: initramfs regeneration failed - run 'sudo dracut -f --regenerate-all' manually, then reboot"
 fi
+
 echo ""
 echo "================================================================"
-echo " Done! Reboot to activate the NPU driver."
+if [ "$built_any" -eq 1 ]; then
+    echo " Done! Reboot to activate the NPU driver."
+else
+    echo " WARNING: amdxdna kernel module was not built for any kernel."
+fi
 echo "================================================================"
 echo ""
 
@@ -282,6 +327,17 @@ fi
 %config(noreplace) %{_sysconfdir}/dracut.conf.d/99-amdxdna.conf
 
 %changelog
+* Wed May 20 2026 Alessandro Lattao <alessandro@lattao.com> - 2.21.75-3
+- dkms.conf: drop deprecated CLEAN= directive (DKMS now runs make clean
+  automatically and warns if CLEAN= is set)
+- %%post dkms: check dkms status before dkms add so the "DKMS tree
+  already contains" error is not printed on package upgrades
+- %%posttrans dkms: filter installed kernels to those < 7.0 (the OOT
+  module's BUILD_EXCLUSIVE range) before invoking DKMS. If no kernel
+  needs the OOT module (kernel 7+ has amdxdna in-tree), exit cleanly
+  with an explanatory message instead of printing a fake
+  "Done! Reboot to activate" after three failed builds
+
 * Wed May 20 2026 Alessandro Lattao <alessandro@lattao.com> - 2.21.75-2
 - Make xdna-driver-dkms a conditional weak dependency of the main package
   using a boolean Recommends: (xdna-driver-dkms if kernel < 7.0)
