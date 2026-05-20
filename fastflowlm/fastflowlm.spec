@@ -7,7 +7,7 @@
 
 Name:           fastflowlm
 Version:        0.9.42
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -98,7 +98,6 @@ test -f %{buildroot}%{_prefix}/bin/flm || { echo "ERROR: flm binary not installe
 
 # Remove files not needed at runtime
 rm -rf %{buildroot}%{_prefix}/include
-rm -rf %{buildroot}%{_prefix}/lib64
 
 # Remove cmake-generated symlink in /usr/local/bin (wrong path for packaging)
 rm -f %{buildroot}/usr/local/bin/flm 2>/dev/null || true
@@ -137,8 +136,9 @@ echo ""
 %dir %{_prefix}/bin
 %{_prefix}/bin/flm
 %{_prefix}/VERSION
-%dir %{_prefix}/lib
-%{_prefix}/lib/*.so
+%dir %{_prefix}/lib64
+%dir %{_prefix}/lib64/flm
+%{_prefix}/lib64/flm/*.so
 %dir %{_prefix}/share
 %dir %{_prefix}/share/flm
 %{_prefix}/share/flm/model_list.json
@@ -147,6 +147,9 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Wed May 20 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.42-2
+- Fix install paths: upstream moved .so libraries from lib/ to lib64/flm/
+
 * Thu May 14 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.42-1
 - Update to 0.9.42
 
