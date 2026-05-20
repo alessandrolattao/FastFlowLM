@@ -7,7 +7,7 @@
 
 Name:           fastflowlm
 Version:        0.9.42
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -99,6 +99,20 @@ test -f %{buildroot}%{_prefix}/bin/flm || { echo "ERROR: flm binary not installe
 # Remove files not needed at runtime
 rm -rf %{buildroot}%{_prefix}/include
 
+# Strip out the proprietary NPU kernel binaries that upstream ships as
+# prebuilt blobs (covered by LICENSE_BINARY.txt, NOT by the MIT License
+# declared above). They are downloaded at first run by flm-fetch-kernels,
+# which requires the user to explicitly accept the proprietary EULA.
+#   - lib64/flm/*.so   : per-model NPU runtime libraries
+#   - share/flm/xclbins/ : compiled NPU kernels
+rm -rf %{buildroot}%{_prefix}/lib64/flm
+rm -rf %{buildroot}%{_prefix}/share/flm/xclbins
+
+# Keep the empty target directories so flm-fetch-kernels has a stable
+# install location owned by this package.
+install -d %{buildroot}%{_prefix}/lib64/flm
+install -d %{buildroot}%{_prefix}/share/flm/xclbins
+
 # Remove cmake-generated symlink in /usr/local/bin (wrong path for packaging)
 rm -f %{buildroot}/usr/local/bin/flm 2>/dev/null || true
 
@@ -130,17 +144,34 @@ echo ""
 %dir %{_prefix}/bin
 %{_prefix}/bin/flm
 %{_prefix}/VERSION
+# Empty directories owned by this package. The proprietary NPU runtime
+# libraries (lib64/flm/*.so) and compiled NPU kernels (share/flm/xclbins/)
+# are installed into these directories at first run by flm-fetch-kernels.
 %dir %{_prefix}/lib64
 %dir %{_prefix}/lib64/flm
-%{_prefix}/lib64/flm/*.so
 %dir %{_prefix}/share
 %dir %{_prefix}/share/flm
+%dir %{_prefix}/share/flm/xclbins
 %{_prefix}/share/flm/model_list.json
-%{_prefix}/share/flm/xclbins/
 /usr/bin/flm
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Wed May 20 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.42-4
+- Honor the MIT license declaration of this package: strip the prebuilt
+  NPU kernel binaries (lib64/flm/*.so and share/flm/xclbins/) from the
+  RPM payload at %%install time. Those blobs are covered by upstream's
+  LICENSE_BINARY.txt v2.0 (proprietary) and must not ship in a package
+  whose %%license is MIT.
+- The empty lib64/flm/ and share/flm/xclbins/ directories are still
+  owned by this package so that flm-fetch-kernels has a stable, package-
+  managed install location.
+- flm-fetch-kernels: fix install paths to match upstream 0.9.42 layout:
+  blobs are extracted from opt/fastflowlm/lib/flm/ in the .deb (subdir
+  added by upstream) and installed into /opt/fastflowlm/lib64/flm/ on
+  Fedora (CMAKE_INSTALL_LIBDIR=lib64), matching the rpath the binary
+  was linked with.
+
 * Wed May 20 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.42-3
 - %%post: drop stale references to DKMS and to manual memlock setup
   (memlock is now configured by xdna-driver) and reduce the message

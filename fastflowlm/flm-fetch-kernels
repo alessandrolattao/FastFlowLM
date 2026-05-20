@@ -55,9 +55,13 @@ echo ""
 read -r -p "Continue? [y/N] " REPLY
 [[ "$REPLY" =~ ^[YyYy]$ ]] || { warn "Aborted."; exit 0; }
 
-# Check if kernels are already installed
-if [[ -d "${FLM_INSTALL_DIR}/lib" ]] && ls "${FLM_INSTALL_DIR}/lib/"*.so &>/dev/null 2>&1; then
-    warn "NPU kernels already present in ${FLM_INSTALL_DIR}/lib/"
+# Check if kernels are already installed.
+# On Fedora the package installs the binary against CMAKE_INSTALL_LIBDIR=lib64,
+# and we mirror the upstream's lib/flm/ layout under lib64/flm/.
+LIB_DEST="${FLM_INSTALL_DIR}/lib64/flm"
+XCLBINS_DEST="${FLM_INSTALL_DIR}/share/flm/xclbins"
+if [[ -d "${LIB_DEST}" ]] && ls "${LIB_DEST}/"*.so &>/dev/null 2>&1; then
+    warn "NPU kernels already present in ${LIB_DEST}/"
     read -r -p "Overwrite? [y/N] " OVERWRITE
     [[ "$OVERWRITE" =~ ^[YyYy]$ ]] || { info "Installation skipped."; exit 0; }
 fi
@@ -84,28 +88,30 @@ else
     error "Unrecognised data.tar format in .deb"
 fi
 
-# Blobs are in opt/fastflowlm/lib/ and opt/fastflowlm/share/flm/xclbins/
+# Upstream layout: blobs live under opt/fastflowlm/lib/flm/*.so and
+# opt/fastflowlm/share/flm/xclbins/. The .deb uses lib/ because Debian's
+# CMAKE_INSTALL_LIBDIR is lib; on Fedora the binary is built against lib64,
+# so we install into lib64/flm/.
 DEB_OPT="${TMP_DIR}/opt/fastflowlm"
+DEB_LIB="${DEB_OPT}/lib/flm"
+DEB_XCLBINS="${DEB_OPT}/share/flm/xclbins"
 [[ -d "${DEB_OPT}" ]] || error "Unexpected .deb layout: /opt/fastflowlm not found"
+[[ -d "${DEB_LIB}" ]] || error "Unexpected .deb layout: ${DEB_LIB#${TMP_DIR}/} not found"
 
-# Copy .so kernel libraries
-if [[ -d "${DEB_OPT}/lib" ]]; then
-    info "Installing kernel .so files into ${FLM_INSTALL_DIR}/lib/..."
-    mkdir -p "${FLM_INSTALL_DIR}/lib"
-    cp -v "${DEB_OPT}/lib/"*.so "${FLM_INSTALL_DIR}/lib/"
-    chmod 755 "${FLM_INSTALL_DIR}/lib/"*.so
+info "Installing kernel .so files into ${LIB_DEST}/..."
+mkdir -p "${LIB_DEST}"
+cp -v "${DEB_LIB}/"*.so "${LIB_DEST}/"
+chmod 755 "${LIB_DEST}/"*.so
+
+if [[ -d "${DEB_XCLBINS}" ]]; then
+    info "Installing xclbin files into ${XCLBINS_DEST}/..."
+    mkdir -p "${XCLBINS_DEST}"
+    cp -r "${DEB_XCLBINS}/." "${XCLBINS_DEST}/"
 fi
 
-# Copy xclbin files (NPU binaries per model)
-if [[ -d "${DEB_OPT}/share/flm/xclbins" ]]; then
-    info "Installing xclbin files into ${FLM_INSTALL_DIR}/share/flm/xclbins/..."
-    mkdir -p "${FLM_INSTALL_DIR}/share/flm/xclbins"
-    cp -r "${DEB_OPT}/share/flm/xclbins/." "${FLM_INSTALL_DIR}/share/flm/xclbins/"
-fi
-
-# Copy libaiebu.a if present
-if [[ -f "${DEB_OPT}/lib/libaiebu.a" ]]; then
-    cp -v "${DEB_OPT}/lib/libaiebu.a" "${FLM_INSTALL_DIR}/lib/"
+# libaiebu.a, if shipped, lives next to the .so files in the .deb.
+if [[ -f "${DEB_LIB}/libaiebu.a" ]]; then
+    cp -v "${DEB_LIB}/libaiebu.a" "${LIB_DEST}/"
 fi
 
 echo ""
