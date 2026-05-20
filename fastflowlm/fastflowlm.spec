@@ -5,9 +5,17 @@
 # Minimum expected NPU driver version (passed to CMake)
 %global npu_version 32.0.203.304
 
+# The /opt/fastflowlm/bin/flm binary is linked against the proprietary NPU
+# runtime libraries (libdequant.so, libgemm.so, lib*_npu.so, ...) which
+# this RPM intentionally does NOT ship (they live under LICENSE_BINARY.txt
+# v2.0 and are fetched at runtime by flm-fetch-kernels). Suppress the
+# automatically generated DT_NEEDED -> Requires entries for those libs so
+# dnf can install the package without trying to satisfy them.
+%global __requires_exclude ^lib(dequant|gemm|gemma4e_npu|gemma_embedding|gemma_npu|gemma_text_npu|gpt_oss_npu|lfm2_npu|llama_npu|lm_head|mha|nanbeige_npu|phi4_npu|q4_npu_eXpress|qwen2_npu|qwen2vl_npu|qwen3_5vl_npu|qwen3_npu|qwen3vl_npu|whisper_npu)[.]so
+
 Name:           fastflowlm
 Version:        0.9.42
-Release:        4%{?dist}
+Release:        5%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -157,6 +165,15 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Wed May 20 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.42-5
+- Fix unsatisfiable Requires introduced in -4: /opt/fastflowlm/bin/flm
+  has DT_NEEDED entries for the 19 proprietary NPU runtime libraries
+  that this RPM no longer ships, and rpmbuild's automatic dependency
+  generator turned each entry into a Requires (libdequant.so()(64bit)
+  &c.), making the package uninstallable. Filter those entries out via
+  %%__requires_exclude. The .so files are still fetched at first run
+  by flm-fetch-kernels.
+
 * Wed May 20 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.42-4
 - Honor the MIT license declaration of this package: strip the prebuilt
   NPU kernel binaries (lib64/flm/*.so and share/flm/xclbins/) from the
