@@ -67,7 +67,7 @@ if [[ -d "${LIB_DEST}" ]] && ls "${LIB_DEST}/"*.so &>/dev/null 2>&1; then
 fi
 
 info "Downloading ${DEB_PACKAGE}..."
-curl -L --progress-bar \
+curl -fL --progress-bar \
     "${GITHUB_RELEASE_BASE}/${DEB_PACKAGE}" \
     -o "${TMP_DIR}/${DEB_PACKAGE}"
 
