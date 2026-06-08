@@ -1,5 +1,10 @@
 %global debug_package %{nil}
 
+# Upstream pin: amdxdna 0.15 lives only on the AMD '1.8' release branch (no tag).
+# The build system clones this branch at this exact commit for reproducibility.
+%global amd_branch 1.8
+%global amd_commit 039c0d3528a340266203c5b48f41ed61262af67b
+
 Name:           xdna-driver
 Version:        2.21.75
 Release:        5%{?dist}

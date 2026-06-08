@@ -32,7 +32,8 @@ define build-srpm
 	echo "--- Building SRPM: $$PKG v$$VER ---"; \
 	if [ "$$PKG" = "xdna-driver" ]; then \
 	    REPO="https://github.com/amd/xdna-driver"; \
-	    BRANCH="$$VER"; \
+	    BRANCH=$$(awk '/^%global amd_branch/{print $$3}' "$$SPEC"); \
+	    AMD_COMMIT=$$(awk '/^%global amd_commit/{print $$3}' "$$SPEC"); \
 	elif [ "$$PKG" = "fastflowlm" ]; then \
 	    REPO="https://github.com/FastFlowLM/FastFlowLM"; \
 	    BRANCH="v$$VER"; \
@@ -46,7 +47,13 @@ define build-srpm
 	    cp -a "$$LOCAL_SRC" "$$PKG-$$VER"; \
 	else \
 	    echo "--- Cloning $$REPO @ $$BRANCH ---"; \
-	    git clone --recurse-submodules --branch $$BRANCH --depth 1 $$REPO $$PKG-$$VER; \
+	    if [ -n "$$AMD_COMMIT" ]; then \
+	        git clone --recurse-submodules --branch $$BRANCH $$REPO $$PKG-$$VER; \
+	        git -C $$PKG-$$VER checkout "$$AMD_COMMIT"; \
+	        git -C $$PKG-$$VER submodule update --init --recursive; \
+	    else \
+	        git clone --recurse-submodules --branch $$BRANCH --depth 1 $$REPO $$PKG-$$VER; \
+	    fi; \
 	fi; \
 	if [ "$$PKG" = "xdna-driver" ]; then \
 	    echo "--- Downloading NPU firmware ---"; \

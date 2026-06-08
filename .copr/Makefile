@@ -4,7 +4,8 @@ srpm:
 	echo "--- Building SRPM: $$PKG v$$VER ---"; \
 	if [ "$$PKG" = "xdna-driver" ]; then \
 	    REPO="https://github.com/amd/xdna-driver"; \
-	    BRANCH="$$VER"; \
+	    BRANCH=$$(awk '/^%global amd_branch/{print $$3}' "$(spec)"); \
+	    AMD_COMMIT=$$(awk '/^%global amd_commit/{print $$3}' "$(spec)"); \
 	elif [ "$$PKG" = "fastflowlm" ]; then \
 	    REPO="https://github.com/FastFlowLM/FastFlowLM"; \
 	    BRANCH="v$$VER"; \
@@ -14,7 +15,13 @@ srpm:
 	dnf install -y git python3 rpm-build; \
 	rm -rf $$PKG-$$VER $$PKG-$$VER.tar.gz; \
 	echo "--- Cloning $$REPO @ $$BRANCH ---"; \
-	git clone --recurse-submodules --branch $$BRANCH --depth 1 $$REPO $$PKG-$$VER; \
+	if [ -n "$$AMD_COMMIT" ]; then \
+	    git clone --recurse-submodules --branch $$BRANCH $$REPO $$PKG-$$VER; \
+	    git -C $$PKG-$$VER checkout "$$AMD_COMMIT"; \
+	    git -C $$PKG-$$VER submodule update --init --recursive; \
+	else \
+	    git clone --recurse-submodules --branch $$BRANCH --depth 1 $$REPO $$PKG-$$VER; \
+	fi; \
 	if [ "$$PKG" = "xdna-driver" ]; then \
 	    echo "--- Downloading NPU firmware ---"; \
 	    cd $$PKG-$$VER; \
