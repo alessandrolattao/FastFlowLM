@@ -29,29 +29,51 @@ jobs:
 
       # --- xdna-driver ---
 
-      - name: Check xdna-driver latest tag
+      - name: Check xdna-driver latest release branch
         id: xdna
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          LATEST=$(gh api repos/amd/xdna-driver/tags --paginate \
-            --jq '.[].name' \
-            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
-            | sort -rV \
-            | head -1)
+          # amd/xdna-driver ships via numbered release BRANCHES (1.7, 1.8, ...),
+          # not tags (it has a single, stale git tag). The amdxdna 0.15 driver
+          # source lives under drivers/accel/. Pick the highest numeric branch
+          # that contains that tree.
+          BRANCH=$(gh api repos/amd/xdna-driver/branches --paginate --jq '.[].name' \
+            | grep -E '^[0-9]+\.[0-9]+$' | sort -V | tac \
+            | while read -r b; do \
+                if gh api "repos/amd/xdna-driver/contents/drivers/accel?ref=$b" >/dev/null 2>&1; then \
+                  echo "$b"; break; \
+                fi; \
+              done)
+          COMMIT=$(gh api "repos/amd/xdna-driver/commits/$BRANCH" --jq '.sha')
+          # The package version tracks the bundled XRT version (XRT_VERSION_MINOR
+          # in the XRT submodule at that branch's commit) -> 2.<minor>.0.
+          XRT_SHA=$(gh api "repos/amd/xdna-driver/contents/xrt?ref=$BRANCH" --jq '.sha')
+          XRT_MIN=$(gh api "repos/Xilinx/XRT/contents/src/CMake/settings.cmake?ref=$XRT_SHA" \
+            --jq '.content' | base64 -d \
+            | awk '/set\(XRT_VERSION_MINOR/{gsub(/[^0-9]/,"",$2); print $2; exit}')
+          LATEST="2.${XRT_MIN}.0"
           CURRENT=$(awk '/^Version:/{print $2}' xdna-driver/xdna-driver.spec)
-          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
-          echo "xdna-driver: current=$CURRENT latest=$LATEST"
-          if [ "$LATEST" != "$CURRENT" ]; then
+          CUR_COMMIT=$(awk '/^%global amd_commit/{print $3}' xdna-driver/xdna-driver.spec)
+          echo "latest=$LATEST"   >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH"   >> "$GITHUB_OUTPUT"
+          echo "commit=$COMMIT"   >> "$GITHUB_OUTPUT"
+          echo "xdna-driver: current=$CURRENT@$CUR_COMMIT latest=$LATEST@$COMMIT (branch $BRANCH)"
+          if [ "$LATEST" != "$CURRENT" ] || [ "$COMMIT" != "$CUR_COMMIT" ]; then
             echo "updated=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::xdna-driver update available: $CURRENT -> $LATEST"
+            echo "::notice::xdna-driver update available: $CURRENT -> $LATEST (branch $BRANCH, commit $COMMIT)"
           fi
 
       - name: Update xdna-driver spec
         if: steps.xdna.outputs.updated == 'true'
         env:
           NEW_VER: ${{ steps.xdna.outputs.latest }}
-        run: make bump-xdna VER="${NEW_VER}"
+          NEW_BRANCH: ${{ steps.xdna.outputs.branch }}
+          NEW_COMMIT: ${{ steps.xdna.outputs.commit }}
+        run: |
+          sed -i "s|^%global amd_branch.*|%global amd_branch ${NEW_BRANCH}|" xdna-driver/xdna-driver.spec
+          sed -i "s|^%global amd_commit.*|%global amd_commit ${NEW_COMMIT}|" xdna-driver/xdna-driver.spec
+          make bump-xdna VER="${NEW_VER}"
 
       # --- fastflowlm ---
 
