@@ -2,7 +2,7 @@
 
 Name:           xdna-driver
 Version:        2.21.75
-Release:        4%{?dist}
+Release:        5%{?dist}
 Summary:        AMD XDNA userspace driver, XRT libraries, NPU firmware, and DKMS kernel module
 
 License:        Apache-2.0
@@ -246,7 +246,10 @@ command -v dkms >/dev/null 2>&1 || exit 0
 built_any=0
 for kv in $(ls -1 /lib/modules/ 2>/dev/null | sort -V); do
     [ -d "/lib/modules/${kv}/build" ] || continue
-    maj=${kv%%.*}; rest=${kv#*.}; min=${rest%%.*}
+    # Use cut, not bash prefix-trim: rpm collapses doubled percent signs
+    # inside scriptlets, which would silently mangle the version split.
+    maj=$(echo "$kv" | cut -d. -f1)
+    min=$(echo "$kv" | cut -d. -f2)
     case "$maj" in *[!0-9]*|"") continue ;; esac
     case "$min" in *[!0-9]*|"") min=0 ;; esac
     [ "$maj" -eq 6 ] && [ "$min" -ge 10 ] || continue
@@ -290,6 +293,13 @@ fi
 %config(noreplace) %{_sysconfdir}/dracut.conf.d/99-amdxdna.conf
 
 %changelog
+* Mon Jun 08 2026 Alessandro Lattao <alessandro@lattao.com> - 2.21.75-5
+- %%posttrans dkms: fix the kernel-version split that skipped every kernel,
+  so the module was never built on kernel 6.x. The bash prefix-trim used to
+  parse the version was mangled by rpm scriptlet macro expansion (doubled
+  percent signs collapse to one); split the major/minor fields with 'cut'
+  instead. This bug predates the -4 scriptlet rework.
+
 * Mon Jun 08 2026 Alessandro Lattao <alessandro@lattao.com> - 2.21.75-4
 - %%posttrans dkms: drop 'dracut -f --regenerate-all'. It could regenerate a
   broken initramfs for the running kernel (missing drivers -> no boot) and was
