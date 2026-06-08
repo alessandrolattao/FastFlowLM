@@ -82,9 +82,31 @@ flm run llama3.2:1b
 ## Requirements
 
 - AMD Ryzen AI CPU with XDNA2 NPU (Strix, Strix Halo, Kraken, Gorgon Point)
-- Linux kernel 6.10 - 6.x for DKMS module build (kernel 7+ has amdxdna built-in, no DKMS needed)
+- Linux kernel >= 6.10. On kernel < 7 the `xdna-driver-dkms` module is pulled in automatically (it is the only driver available). On kernel 7+ the kernel's built-in `amdxdna` driver is used by default; the DKMS module is optional there (see [Newer NPUs on kernel 7+](#newer-npus-on-kernel-7))
 - NPU firmware >= 1.1.0.0 (installed automatically by `xdna-driver`)
 - Unlimited memlock limit: the NPU requires large DMA buffers locked in physical RAM to load model weights. The default kernel limit (64 KB) is far too low. `xdna-driver` sets this automatically via `/etc/security/limits.d/99-amdxdna.conf` — log out and back in after install for it to take effect
+
+## Newer NPUs on kernel 7+
+
+On kernel 7+ the package uses the kernel's in-tree `amdxdna` driver by default.
+That driver tracks the kernel and can lag behind AMD's: on a recent NPU (e.g.
+NPU3) or with newer firmware, the in-tree driver may fail to detect the device.
+
+In that case, install the out-of-tree driver module, which ships AMD's newer
+`amdxdna` 0.15 and overrides the in-tree one:
+```sh
+sudo dnf install xdna-driver-dkms
+sudo reboot
+```
+
+To revert to the in-tree driver, remove it:
+```sh
+sudo dnf remove xdna-driver-dkms
+sudo reboot
+```
+
+This only affects the kernel module. It is not needed if `flm validate`
+already detects your NPU.
 
 ## About `flm-fetch-kernels`
 
