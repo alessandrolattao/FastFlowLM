@@ -6,8 +6,8 @@
 %global amd_commit 039c0d3528a340266203c5b48f41ed61262af67b
 
 Name:           xdna-driver
-Version:        2.21.75
-Release:        5%{?dist}
+Version:        2.25.0
+Release:        1%{?dist}
 Summary:        AMD XDNA userspace driver, XRT libraries, NPU firmware, and DKMS kernel module
 
 License:        Apache-2.0
@@ -298,6 +298,11 @@ fi
 %config(noreplace) %{_sysconfdir}/dracut.conf.d/99-amdxdna.conf
 
 %changelog
+* Mon Jun 08 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-1
+- Bump to the AMD 1.8 release branch (XRT 2.25, amdxdna driver 0.15, npu3
+  firmware), pinned to commit 039c0d35. The -dkms subpackage now builds the
+  primary drivers/accel amdxdna.ko (0.15) instead of the legacy module.
+
 * Mon Jun 08 2026 Alessandro Lattao <alessandro@lattao.com> - 2.21.75-5
 - %%posttrans dkms: fix the kernel-version split that skipped every kernel,
   so the module was never built on kernel 6.x. The bash prefix-trim used to
