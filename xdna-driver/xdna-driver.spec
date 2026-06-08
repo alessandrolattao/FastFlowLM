@@ -279,7 +279,13 @@ for kv in $(ls -1 /lib/modules/ 2>/dev/null | sort -V); do
 done
 
 if [ "$built_any" -eq 1 ]; then
-    echo "xdna-driver: amdxdna kernel module built. Reboot to activate the NPU driver."
+    echo ""
+    echo "xdna-driver-dkms: amdxdna 0.15 module built and installed."
+    echo ""
+    echo "  >>> REBOOT REQUIRED to load the new driver:  sudo reboot"
+    echo ""
+    echo "  After rebooting, 'flm validate' should report 'amdxdna version: 0.15'."
+    echo ""
 else
     echo "xdna-driver-dkms: no kernel >= 6.10 with headers found; nothing built."
 fi
