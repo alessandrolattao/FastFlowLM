@@ -14,7 +14,7 @@
 
 Name:           fastflowlm
 Version:        0.9.43
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -164,6 +164,13 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Mon Jun 08 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.43-2
+- Drop the '%%global __os_install_post %%{nil}' override (keep only
+  debug_package %%{nil}) so the flm binary ships stripped.
+- flm-fetch-kernels: use 'curl -fL' so a failed download (e.g. a 404) aborts
+  with a clear error instead of saving an HTML error page as the .deb.
+- flm-fetch-kernels: accept 'yes' (not just 'y') at the confirmation prompts.
+
 * Wed May 27 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.43-1
 - Update to 0.9.43
 

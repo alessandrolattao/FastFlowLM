@@ -2,7 +2,7 @@
 
 Name:           xdna-driver
 Version:        2.21.75
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        AMD XDNA userspace driver, XRT libraries, NPU firmware, and DKMS kernel module
 
 License:        Apache-2.0
@@ -290,6 +290,17 @@ fi
 %config(noreplace) %{_sysconfdir}/dracut.conf.d/99-amdxdna.conf
 
 %changelog
+* Mon Jun 08 2026 Alessandro Lattao <alessandro@lattao.com> - 2.21.75-4
+- %%posttrans dkms: drop 'dracut -f --regenerate-all'. It could regenerate a
+  broken initramfs for the running kernel (missing drivers -> no boot) and was
+  pointless: amdxdna is omitted from the initramfs by design (omit_drivers).
+- Drop the '%%global __os_install_post %%{nil}' override (keep only
+  debug_package %%{nil}) so the XRT libraries ship stripped instead of carrying
+  full DWARF debug info (libxrt_coreutil.so: 46 MB -> ~3 MB).
+- Harden DKMS scriptlets: add --rpm_safe_upgrade to 'dkms add'/'dkms remove',
+  only remove on final erase ($1 == 0) instead of on every upgrade, and filter
+  the %%posttrans build loop on the full BUILD_EXCLUSIVE range (6.10 - 6.x).
+
 * Wed May 20 2026 Alessandro Lattao <alessandro@lattao.com> - 2.21.75-3
 - dkms.conf: drop deprecated CLEAN= directive (DKMS now runs make clean
   automatically and warns if CLEAN= is set)
