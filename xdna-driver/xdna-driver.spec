@@ -147,32 +147,38 @@ find firmware/amdnpu -type f | while read f; do
     install -Dm644 "$f" "%{buildroot}/usr/lib/$f"
 done
 
-# DKMS: install driver source to /usr/src/xrt-amdxdna-VERSION/
+# DKMS: install the PRIMARY amdxdna 0.15 driver source (drivers/accel/amdxdna)
+# to /usr/src/xrt-amdxdna-VERSION/. The repo layout MUST be preserved: the
+# module's Kbuild prioritises the bundled uAPI header over the kernel's older
+# in-tree one via "-iquote$(src)/../../../include/uapi", a path that only
+# resolves when amdxdna sits at drivers/accel/amdxdna with include/ three
+# levels up. A flat layout makes the compiler pick the kernel's in-tree
+# amdxdna_accel.h (missing newer symbols, e.g. AMDXDNA_BO_SHARE) and the build
+# fails. configure_kernel.sh (PRE_BUILD) feature-tests the target kernel and
+# writes drivers/accel/amdxdna/config_kernel.h, making the module portable
+# across 6.10 -> 7.x.
 DKMS_SRC=%{buildroot}/usr/src/xrt-amdxdna-%{version}
-install -d "${DKMS_SRC}/driver"
-cp -r src/driver/amdxdna "${DKMS_SRC}/driver/amdxdna"
-cp -r src/include "${DKMS_SRC}/include"
+install -d "${DKMS_SRC}/drivers/accel"
+cp -r drivers/accel/amdxdna "${DKMS_SRC}/drivers/accel/amdxdna"
+cp -r drivers/accel/tools   "${DKMS_SRC}/drivers/accel/tools"
+cp -r include               "${DKMS_SRC}/include"
 
-# dkms.conf
+# dkms.conf. No BUILD_EXCLUSIVE_KERNEL_MAX: the 0.15 module builds on kernel 7+
+# too and intentionally overrides the in-tree driver (DEST in updates/, which
+# wins over kernel/ in depmod order). XDNA_HASH/XDNA_DRIVER_VERSION are passed
+# so the module's Makefile does not shell out to git (absent in the DKMS tree).
 cat > "${DKMS_SRC}/dkms.conf" << 'DKMSEOF'
-PACKAGE_NAME=xrt-amdxdna
-PACKAGE_VERSION=%{version}
-BUILD_EXCLUSIVE_KERNEL_MIN=6.10
-BUILD_EXCLUSIVE_KERNEL_MAX=6.99
-
-MAKE="make -C driver/amdxdna KERNEL_SRC=${kernel_source_dir}"
-
-BUILT_MODULE_NAME[0]=amdxdna
-BUILT_MODULE_LOCATION[0]="driver/amdxdna/build/driver/amdxdna"
-DEST_MODULE_LOCATION[0]="/kernel/extras"
-
+PACKAGE_NAME="xrt-amdxdna"
+PACKAGE_VERSION="%{version}"
+BUILD_EXCLUSIVE_KERNEL_MIN="6.10"
 AUTOINSTALL="yes"
-
-PRE_BUILD="./configure_kernel.sh"
+PRE_BUILD="drivers/accel/tools/configure_kernel.sh"
+MAKE[0]="make -C drivers/accel/amdxdna KERNEL_SRC=${kernel_source_dir} XDNA_HASH=%{amd_commit} XDNA_DRIVER_VERSION=%{version} modules"
+CLEAN="make -C drivers/accel/amdxdna KERNEL_SRC=${kernel_source_dir} clean"
+BUILT_MODULE_NAME[0]="amdxdna"
+BUILT_MODULE_LOCATION[0]="drivers/accel/amdxdna"
+DEST_MODULE_LOCATION[0]="/updates"
 DKMSEOF
-
-install -m755 src/driver/tools/configure_kernel.sh \
-    "${DKMS_SRC}/configure_kernel.sh"
 
 # Register lib64 with the dynamic linker
 install -Dm644 /dev/null \
