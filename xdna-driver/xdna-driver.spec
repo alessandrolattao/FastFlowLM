@@ -287,13 +287,6 @@ for kv in $target_kernels; do
     fi
 done
 
-if [ "$built_any" -eq 1 ] && command -v dracut &>/dev/null; then
-    echo ""
-    echo "Regenerating initramfs (this may take a moment)..."
-    dracut -f --regenerate-all 2>&1 || \
-        echo "WARNING: initramfs regeneration failed - run 'sudo dracut -f --regenerate-all' manually, then reboot"
-fi
-
 echo ""
 echo "================================================================"
 if [ "$built_any" -eq 1 ]; then
