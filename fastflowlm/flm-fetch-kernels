@@ -53,7 +53,7 @@ echo "  FastFlowLM Proprietary Binary License v2.0."
 echo "  https://github.com/FastFlowLM/FastFlowLM/blob/main/LICENSE_BINARY.txt"
 echo ""
 read -r -p "Continue? [y/N] " REPLY
-[[ "$REPLY" =~ ^[YyYy]$ ]] || { warn "Aborted."; exit 0; }
+[[ "$REPLY" =~ ^[Yy]([Ee][Ss])?$ ]] || { warn "Aborted."; exit 0; }
 
 # Check if kernels are already installed.
 # On Fedora the package installs the binary against CMAKE_INSTALL_LIBDIR=lib64,
@@ -63,7 +63,7 @@ XCLBINS_DEST="${FLM_INSTALL_DIR}/share/flm/xclbins"
 if [[ -d "${LIB_DEST}" ]] && ls "${LIB_DEST}/"*.so &>/dev/null 2>&1; then
     warn "NPU kernels already present in ${LIB_DEST}/"
     read -r -p "Overwrite? [y/N] " OVERWRITE
-    [[ "$OVERWRITE" =~ ^[YyYy]$ ]] || { info "Installation skipped."; exit 0; }
+    [[ "$OVERWRITE" =~ ^[Yy]([Ee][Ss])?$ ]] || { info "Installation skipped."; exit 0; }
 fi
 
 info "Downloading ${DEB_PACKAGE}..."
