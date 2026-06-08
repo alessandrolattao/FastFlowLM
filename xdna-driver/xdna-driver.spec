@@ -7,7 +7,7 @@
 
 Name:           xdna-driver
 Version:        2.25.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        AMD XDNA userspace driver, XRT libraries, NPU firmware, and DKMS kernel module
 
 License:        Apache-2.0
@@ -261,9 +261,9 @@ DRV_VER=$(awk '/define AMDXDNA_DRIVER_MAJOR/{maj=$3} /define AMDXDNA_DRIVER_MINO
     /usr/src/xrt-amdxdna-%{version}/drivers/accel/amdxdna/amdxdna_pci_drv.c 2>/dev/null)
 [ -n "$DRV_VER" ] || DRV_VER="out-of-tree"
 echo ""
-echo "xdna-driver-dkms: building the amdxdna ${DRV_VER} kernel module for each installed"
-echo "kernel. This compiles the driver and feature-probes the kernel headers, so it"
-echo "can take a few minutes per kernel. Please wait and do not interrupt..."
+echo "xdna-driver-dkms: building the amdxdna ${DRV_VER} kernel module for all installed"
+echo "kernels. This compiles the driver and can take a few minutes; dnf will look"
+echo "idle until it finishes. Please wait and do not interrupt..."
 echo ""
 built_any=0
 for kv in $(ls -1 /lib/modules/ 2>/dev/null | sort -V); do
@@ -275,7 +275,6 @@ for kv in $(ls -1 /lib/modules/ 2>/dev/null | sort -V); do
     case "$maj" in *[!0-9]*|"") continue ;; esac
     case "$min" in *[!0-9]*|"") min=0 ;; esac
     { [ "$maj" -gt 6 ] || { [ "$maj" -eq 6 ] && [ "$min" -ge 10 ]; }; } || continue
-    echo "  -> compiling amdxdna ${DRV_VER} for kernel ${kv} (please wait)..."
     if dkms install --force -m xrt-amdxdna -v %{version} -k "${kv}"; then
         built_any=1
     else
@@ -321,6 +320,12 @@ fi
 %config(noreplace) %{_sysconfdir}/dracut.conf.d/99-amdxdna.conf
 
 %changelog
+* Mon Jun 08 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-3
+- %%posttrans dkms: drop the per-kernel "compiling ..." lines. dnf5 buffers
+  scriptlet output and prints it all at the end, so the per-kernel progress was
+  just noise dumped at once. Keep a single upfront "building, please wait (dnf
+  will look idle)" notice and the final reboot reminder.
+
 * Mon Jun 08 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-2
 - %%posttrans dkms: print an upfront "compiling, please wait" notice (building
   the module for every installed kernel can take minutes with no output and
