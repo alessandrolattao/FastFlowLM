@@ -7,7 +7,7 @@
 
 Name:           xdna-driver
 Version:        2.25.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        AMD XDNA userspace driver, XRT libraries, NPU firmware, and DKMS kernel module
 
 License:        Apache-2.0
@@ -321,6 +321,15 @@ fi
 %config(noreplace) %{_sysconfdir}/dracut.conf.d/99-amdxdna.conf
 
 %changelog
+* Mon Jun 08 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-2
+- %%posttrans dkms: print an upfront "compiling, please wait" notice (building
+  the module for every installed kernel can take minutes with no output and
+  looks like a hang), a clearer per-kernel line, and a prominent reboot
+  reminder. The driver version shown is read from the staged source
+  (AMDXDNA_DRIVER_MAJOR/MINOR), not hardcoded, so it stays correct on bumps.
+- Release bump so the updated scriptlet ships under a distinct NVR (the prior
+  same-NVR rebuild was not picked up by dnf reinstall).
+
 * Mon Jun 08 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-1
 - Bump to the AMD 1.8 release branch (XRT 2.25, amdxdna driver 0.15, npu3
   firmware), pinned to commit 039c0d35. The -dkms subpackage now builds the
