@@ -251,9 +251,15 @@ command -v dkms >/dev/null 2>&1 || exit 0
 
 # The OOT amdxdna 0.15 module builds on kernel >= 6.10 (BUILD_EXCLUSIVE_KERNEL_MIN
 # in dkms.conf, no upper bound). Build it for every installed kernel that has
-# headers; on kernel 7+ it overrides the in-tree amdxdna (DEST in updates/).
+# headers; on kernel 7+ it overrides the in-tree amdxdna (DKMS installs under
+# extra/, which wins over the kernel/ in-tree module in depmod order).
 # Kernels installed later are handled automatically by the dkms kernel-install
 # hook (/usr/lib/kernel/install.d/40-dkms.install).
+echo ""
+echo "xdna-driver-dkms: building the amdxdna 0.15 kernel module for each installed"
+echo "kernel. This compiles the driver and feature-probes the kernel headers, so it"
+echo "can take a few minutes per kernel. Please wait and do not interrupt..."
+echo ""
 built_any=0
 for kv in $(ls -1 /lib/modules/ 2>/dev/null | sort -V); do
     [ -d "/lib/modules/${kv}/build" ] || continue
@@ -264,7 +270,7 @@ for kv in $(ls -1 /lib/modules/ 2>/dev/null | sort -V); do
     case "$maj" in *[!0-9]*|"") continue ;; esac
     case "$min" in *[!0-9]*|"") min=0 ;; esac
     { [ "$maj" -gt 6 ] || { [ "$maj" -eq 6 ] && [ "$min" -ge 10 ]; }; } || continue
-    echo "Building amdxdna kernel module for ${kv}..."
+    echo "  -> compiling amdxdna 0.15 for kernel ${kv} (please wait)..."
     if dkms install --force -m xrt-amdxdna -v %{version} -k "${kv}"; then
         built_any=1
     else
