@@ -7,7 +7,7 @@
 
 Name:           xdna-driver
 Version:        2.25.0
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        AMD XDNA userspace driver, XRT libraries, NPU firmware, and DKMS kernel module
 
 License:        Apache-2.0
@@ -192,6 +192,15 @@ install -Dm644 /dev/null \
 printf '# amdxdna firmware lives on disk - exclude from initramfs, load after rootfs mount\nomit_drivers+=" amdxdna "\n' \
     > %{buildroot}%{_sysconfdir}/dracut.conf.d/99-amdxdna.conf
 
+# depmod: make the OOT amdxdna (DKMS installs it under extra/) authoritative
+# over the kernel's in-tree module via the documented "override" directive,
+# instead of relying on depmod's default search order. Ships in -dkms and is
+# removed with it, so removing the package cleanly reverts to the in-tree driver.
+install -Dm644 /dev/null \
+    %{buildroot}%{_sysconfdir}/depmod.d/99-amdxdna-oot.conf
+printf 'override amdxdna * extra\n' \
+    > %{buildroot}%{_sysconfdir}/depmod.d/99-amdxdna-oot.conf
+
 %post
 /sbin/ldconfig
 echo ""
@@ -227,23 +236,21 @@ fi
 %posttrans dkms
 command -v dkms >/dev/null 2>&1 || exit 0
 
-# The OOT amdxdna module builds on kernel >= 6.10 (BUILD_EXCLUSIVE_KERNEL_MIN
-# in dkms.conf, no upper bound). Build it for every installed kernel that has
-# headers; on kernel 7+ it overrides the in-tree amdxdna (DKMS installs under
-# extra/, which wins over the kernel/ in-tree module in depmod order).
-# Kernels installed later are handled automatically by the dkms kernel-install
-# hook (/usr/lib/kernel/install.d/40-dkms.install).
+# Build only for the NEWEST installed in-range kernel (the one you will boot).
+# DKMS builds inside the rpm transaction, which dnf5 runs with no live output,
+# so building one kernel instead of every installed one keeps the install fast.
+# Other and future kernels are built automatically by the dkms kernel-install
+# hook (/usr/lib/kernel/install.d/40-dkms.install) when they get installed. The
+# module builds on kernel >= 6.10 (BUILD_EXCLUSIVE_KERNEL_MIN, no upper bound);
+# on kernel 7+ it overrides the in-tree amdxdna (installed under extra/, made
+# authoritative by /etc/depmod.d/99-amdxdna-oot.conf).
 # Read the driver version (e.g. 0.15) from the staged source so these messages
 # stay correct when the bundled driver is bumped (0.16, ...).
 DRV_VER=$(awk '/define AMDXDNA_DRIVER_MAJOR/{maj=$3} /define AMDXDNA_DRIVER_MINOR/{min=$3} END{if (maj != "") print maj"."min}' \
     /usr/src/xrt-amdxdna-%{version}/drivers/accel/amdxdna/amdxdna_pci_drv.c 2>/dev/null)
 [ -n "$DRV_VER" ] || DRV_VER="out-of-tree"
-echo ""
-echo "xdna-driver-dkms: building the amdxdna ${DRV_VER} kernel module for all installed"
-echo "kernels. This compiles the driver and can take a few minutes; dnf will look"
-echo "idle until it finishes. Please wait and do not interrupt..."
-echo ""
-built_any=0
+# Pick the highest version-sorted in-range kernel that has build headers.
+target=""
 for kv in $(ls -1 /lib/modules/ 2>/dev/null | sort -V); do
     [ -d "/lib/modules/${kv}/build" ] || continue
     # Use cut, not bash prefix-trim: rpm collapses doubled percent signs
@@ -253,12 +260,19 @@ for kv in $(ls -1 /lib/modules/ 2>/dev/null | sort -V); do
     case "$maj" in *[!0-9]*|"") continue ;; esac
     case "$min" in *[!0-9]*|"") min=0 ;; esac
     { [ "$maj" -gt 6 ] || { [ "$maj" -eq 6 ] && [ "$min" -ge 10 ]; }; } || continue
-    if dkms install --force -m xrt-amdxdna -v %{version} -k "${kv}"; then
+    target="$kv"
+done
+built_any=0
+if [ -n "$target" ]; then
+    echo ""
+    echo "xdna-driver-dkms: building the amdxdna ${DRV_VER} kernel module for ${target}."
+    echo "This can take a few minutes; dnf will look idle until it finishes. Please wait..."
+    if dkms install --force -m xrt-amdxdna -v %{version} -k "${target}"; then
         built_any=1
     else
-        echo "WARNING: dkms build failed for ${kv} - run: sudo dkms install xrt-amdxdna/%{version} -k ${kv}"
+        echo "WARNING: dkms build failed for ${target} - run: sudo dkms install xrt-amdxdna/%{version} -k ${target}"
     fi
-done
+fi
 
 if [ "$built_any" -eq 1 ]; then
     echo ""
@@ -296,8 +310,19 @@ fi
 %files dkms
 /usr/src/xrt-amdxdna-%{version}/
 %config(noreplace) %{_sysconfdir}/dracut.conf.d/99-amdxdna.conf
+%config(noreplace) %{_sysconfdir}/depmod.d/99-amdxdna-oot.conf
 
 %changelog
+* Tue Jun 09 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-4
+- Add /etc/depmod.d/99-amdxdna-oot.conf with "override amdxdna * extra" so the
+  out-of-tree module is authoritative over the kernel's in-tree amdxdna via the
+  documented depmod override directive, instead of relying on the default search
+  order. Removed with -dkms, so removal cleanly reverts to the in-tree driver.
+- %%posttrans dkms: build only the newest in-range installed kernel instead of
+  every installed kernel (Fedora kmod guidance). dkms's kernel-install hook
+  builds the rest when they are installed. Faster install, shorter "idle" window.
+- Drop openSUSE BuildRequires conditionals (Fedora/RHEL only).
+
 * Mon Jun 08 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-3
 - %%posttrans dkms: drop the per-kernel "compiling ..." lines. dnf5 buffers
   scriptlet output and prints it all at the end, so the per-kernel progress was
