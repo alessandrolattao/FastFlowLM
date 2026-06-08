@@ -84,7 +84,7 @@ flm run llama3.2:1b
 - AMD Ryzen AI CPU with XDNA2 NPU (Strix, Strix Halo, Kraken, Gorgon Point)
 - Linux kernel >= 6.10. On kernel < 7 the `xdna-driver-dkms` module is pulled in automatically (it is the only driver available). On kernel 7+ the kernel's built-in `amdxdna` driver is used by default; the DKMS module is optional there (see [Newer NPUs on kernel 7+](#newer-npus-on-kernel-7))
 - NPU firmware >= 1.1.0.0 (installed automatically by `xdna-driver`)
-- Unlimited memlock limit: the NPU requires large DMA buffers locked in physical RAM to load model weights. The default kernel limit (64 KB) is far too low. `xdna-driver` sets this automatically via `/etc/security/limits.d/99-amdxdna.conf` — log out and back in after install for it to take effect
+- Unlimited memlock limit: the NPU requires large DMA buffers locked in physical RAM to load model weights. The default kernel limit (64 KB) is far too low. `xdna-driver` sets this automatically via `/etc/security/limits.d/99-amdxdna.conf`. Log out and back in after install for it to take effect
 
 ## Newer NPUs on kernel 7+
 
@@ -107,6 +107,12 @@ sudo reboot
 
 This only affects the kernel module. It is not needed if `flm validate`
 already detects your NPU.
+
+> **Note:** the `xdna-driver` *package* version (e.g. `2.25.0`) is not the same
+> as the `amdxdna` *driver* version reported by `flm validate` (e.g. `0.6` or
+> `0.15`). On kernel 7+, after a normal `dnf update`, `flm validate` keeps
+> showing the in-tree driver version (`0.6`/`0.8`), which is expected. It only
+> switches to `0.15` after you install `xdna-driver-dkms` and reboot.
 
 ## About `flm-fetch-kernels`
 
