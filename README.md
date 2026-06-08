@@ -117,8 +117,8 @@ See [docs/building-locally.md](docs/building-locally.md).
 ## Structure
 
 ```
-fastflowlm/         fastflowlm.spec + flm-fetch-kernels + make_srpm
-xdna-driver/        xdna-driver.spec (XRT + firmware + DKMS kernel module) + make_srpm
+fastflowlm/         fastflowlm.spec + flm-fetch-kernels
+xdna-driver/        xdna-driver.spec (XRT + firmware + DKMS kernel module)
 .copr/              Makefile used by COPR to generate SRPMs
 docs/               Build and publishing guides
 Makefile            Targets: srpm, copr, bump, clean
