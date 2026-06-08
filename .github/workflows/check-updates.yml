@@ -51,23 +51,7 @@ jobs:
         if: steps.xdna.outputs.updated == 'true'
         env:
           NEW_VER: ${{ steps.xdna.outputs.latest }}
-        run: |
-          SPEC=xdna-driver/xdna-driver.spec
-          DATE=$(date '+%a %b %-d %Y')
-
-          sed -i "s/^Version:.*/Version:        ${NEW_VER}/" "$SPEC"
-          sed -i "s/^Release:.*/Release:        1%{?dist}/" "$SPEC"
-
-          awk -v new_ver="$NEW_VER" -v date="$DATE" '
-            /^%changelog/ {
-              print
-              print "* " date " Alessandro Lattao <alessandro@lattao.com> - " new_ver "-1"
-              print "- Update to " new_ver
-              print ""
-              next
-            }
-            1
-          ' "$SPEC" > "${SPEC}.tmp" && mv "${SPEC}.tmp" "$SPEC"
+        run: make bump-xdna VER="${NEW_VER}"
 
       # --- fastflowlm ---
 
@@ -90,23 +74,7 @@ jobs:
         if: steps.flm.outputs.updated == 'true'
         env:
           NEW_VER: ${{ steps.flm.outputs.latest }}
-        run: |
-          SPEC=fastflowlm/fastflowlm.spec
-          DATE=$(date '+%a %b %-d %Y')
-
-          sed -i "s/^Version:.*/Version:        ${NEW_VER}/" "$SPEC"
-          sed -i "s/^Release:.*/Release:        1%{?dist}/" "$SPEC"
-
-          awk -v new_ver="$NEW_VER" -v date="$DATE" '
-            /^%changelog/ {
-              print
-              print "* " date " Alessandro Lattao <alessandro@lattao.com> - " new_ver "-1"
-              print "- Update to " new_ver
-              print ""
-              next
-            }
-            1
-          ' "$SPEC" > "${SPEC}.tmp" && mv "${SPEC}.tmp" "$SPEC"
+        run: make bump-flm VER="${NEW_VER}"
 
       # --- commit ---
 
