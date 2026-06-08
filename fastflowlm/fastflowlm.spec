@@ -1,5 +1,4 @@
 %global debug_package %{nil}
-%global __os_install_post %{nil}
 %global _prefix /opt/fastflowlm
 
 # Minimum expected NPU driver version (passed to CMake)

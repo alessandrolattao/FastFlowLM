@@ -1,5 +1,4 @@
 %global debug_package %{nil}
-%global __os_install_post %{nil}
 
 Name:           xdna-driver
 Version:        2.21.75
