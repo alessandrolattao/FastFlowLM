@@ -249,14 +249,19 @@ fi
 %posttrans dkms
 command -v dkms >/dev/null 2>&1 || exit 0
 
-# The OOT amdxdna 0.15 module builds on kernel >= 6.10 (BUILD_EXCLUSIVE_KERNEL_MIN
+# The OOT amdxdna module builds on kernel >= 6.10 (BUILD_EXCLUSIVE_KERNEL_MIN
 # in dkms.conf, no upper bound). Build it for every installed kernel that has
 # headers; on kernel 7+ it overrides the in-tree amdxdna (DKMS installs under
 # extra/, which wins over the kernel/ in-tree module in depmod order).
 # Kernels installed later are handled automatically by the dkms kernel-install
 # hook (/usr/lib/kernel/install.d/40-dkms.install).
+# Read the driver version (e.g. 0.15) from the staged source so these messages
+# stay correct when the bundled driver is bumped (0.16, ...).
+DRV_VER=$(awk '/define AMDXDNA_DRIVER_MAJOR/{maj=$3} /define AMDXDNA_DRIVER_MINOR/{min=$3} END{if (maj != "") print maj"."min}' \
+    /usr/src/xrt-amdxdna-%{version}/drivers/accel/amdxdna/amdxdna_pci_drv.c 2>/dev/null)
+[ -n "$DRV_VER" ] || DRV_VER="out-of-tree"
 echo ""
-echo "xdna-driver-dkms: building the amdxdna 0.15 kernel module for each installed"
+echo "xdna-driver-dkms: building the amdxdna ${DRV_VER} kernel module for each installed"
 echo "kernel. This compiles the driver and feature-probes the kernel headers, so it"
 echo "can take a few minutes per kernel. Please wait and do not interrupt..."
 echo ""
@@ -270,7 +275,7 @@ for kv in $(ls -1 /lib/modules/ 2>/dev/null | sort -V); do
     case "$maj" in *[!0-9]*|"") continue ;; esac
     case "$min" in *[!0-9]*|"") min=0 ;; esac
     { [ "$maj" -gt 6 ] || { [ "$maj" -eq 6 ] && [ "$min" -ge 10 ]; }; } || continue
-    echo "  -> compiling amdxdna 0.15 for kernel ${kv} (please wait)..."
+    echo "  -> compiling amdxdna ${DRV_VER} for kernel ${kv} (please wait)..."
     if dkms install --force -m xrt-amdxdna -v %{version} -k "${kv}"; then
         built_any=1
     else
@@ -280,11 +285,11 @@ done
 
 if [ "$built_any" -eq 1 ]; then
     echo ""
-    echo "xdna-driver-dkms: amdxdna 0.15 module built and installed."
+    echo "xdna-driver-dkms: amdxdna ${DRV_VER} module built and installed."
     echo ""
     echo "  >>> REBOOT REQUIRED to load the new driver:  sudo reboot"
     echo ""
-    echo "  After rebooting, 'flm validate' should report 'amdxdna version: 0.15'."
+    echo "  After rebooting, 'flm validate' should report 'amdxdna version: ${DRV_VER}'."
     echo ""
 else
     echo "xdna-driver-dkms: no kernel >= 6.10 with headers found; nothing built."

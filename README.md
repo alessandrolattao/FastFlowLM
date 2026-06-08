@@ -112,7 +112,8 @@ already detects your NPU.
 > as the `amdxdna` *driver* version reported by `flm validate` (e.g. `0.6` or
 > `0.15`). On kernel 7+, after a normal `dnf update`, `flm validate` keeps
 > showing the in-tree driver version (`0.6`/`0.8`), which is expected. It only
-> switches to `0.15` after you install `xdna-driver-dkms` and reboot.
+> switches to the newer out-of-tree version after you install `xdna-driver-dkms`
+> and reboot.
 
 ## About `flm-fetch-kernels`
 
