@@ -63,13 +63,15 @@ BuildRequires:  pybind11-devel
 %endif
 
 Requires:       dkms
-# DKMS module is only needed on kernel < 7. On kernel 7+ the amdxdna driver
-# is provided in-tree, so the -dkms subpackage is unnecessary (and not
-# buildable). The rich Recommends pulls in -dkms only when a kernel < 7.0
-# is installed. The "kernel" capability is provided by:
+# On kernel < 7 there is no in-tree amdxdna, so the -dkms module is the only
+# driver available: the rich Recommends auto-pulls it there. On kernel 7+
+# amdxdna is in-tree; the -dkms module (now the 0.15 OOT driver) still BUILDS
+# and overrides the in-tree one, but we do NOT auto-pull it -- it is opt-in for
+# users whose newer NPU (e.g. NPU3) the in-tree driver cannot drive (they run
+# 'dnf install xdna-driver-dkms' manually). The "kernel" capability is provided
+# by:
 #   - kernel-core on Fedora and RHEL/AlmaLinux/Rocky (+ EPEL)
 #   - kernel-default on openSUSE Tumbleweed
-# all verified via the corresponding container images.
 Recommends:     (%{name}-dkms = %{version}-%{release} if kernel < 7.0)
 
 %description
@@ -241,12 +243,10 @@ fi
 %posttrans dkms
 command -v dkms >/dev/null 2>&1 || exit 0
 
-# The OOT amdxdna module builds only on kernel 6.10 - 6.x
-# (BUILD_EXCLUSIVE_KERNEL_MIN/MAX in dkms.conf). On kernel 7+ amdxdna is
-# in-tree, so there is nothing to build. Filter the installed kernels to
-# that range up front so DKMS never emits a "BUILD_EXCLUSIVE does not
-# match" warning (dkms install would print it before skipping). Kernels
-# installed later are handled automatically by the dkms kernel-install
+# The OOT amdxdna 0.15 module builds on kernel >= 6.10 (BUILD_EXCLUSIVE_KERNEL_MIN
+# in dkms.conf, no upper bound). Build it for every installed kernel that has
+# headers; on kernel 7+ it overrides the in-tree amdxdna (DEST in updates/).
+# Kernels installed later are handled automatically by the dkms kernel-install
 # hook (/usr/lib/kernel/install.d/40-dkms.install).
 built_any=0
 for kv in $(ls -1 /lib/modules/ 2>/dev/null | sort -V); do
@@ -257,7 +257,7 @@ for kv in $(ls -1 /lib/modules/ 2>/dev/null | sort -V); do
     min=$(echo "$kv" | cut -d. -f2)
     case "$maj" in *[!0-9]*|"") continue ;; esac
     case "$min" in *[!0-9]*|"") min=0 ;; esac
-    [ "$maj" -eq 6 ] && [ "$min" -ge 10 ] || continue
+    { [ "$maj" -gt 6 ] || { [ "$maj" -eq 6 ] && [ "$min" -ge 10 ]; }; } || continue
     echo "Building amdxdna kernel module for ${kv}..."
     if dkms install --force -m xrt-amdxdna -v %{version} -k "${kv}"; then
         built_any=1
@@ -269,7 +269,7 @@ done
 if [ "$built_any" -eq 1 ]; then
     echo "xdna-driver: amdxdna kernel module built. Reboot to activate the NPU driver."
 else
-    echo "xdna-driver-dkms: no in-range (6.10-6.x) kernel with headers found; nothing built (amdxdna is in-tree on kernel 7+)."
+    echo "xdna-driver-dkms: no kernel >= 6.10 with headers found; nothing built."
 fi
 
 %preun dkms
