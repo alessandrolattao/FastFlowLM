@@ -3,7 +3,7 @@
 # Upstream pin: amdxdna 0.15 lives only on the AMD '1.8' release branch (no tag).
 # The build system clones this branch at this exact commit for reproducibility.
 %global amd_branch 1.8
-%global amd_commit 9b9d56d88e6087ccdcb2715ce9d98dfdf112aac4
+%global amd_commit 88dda53eee336c998abca38c71d5bc79fb3633b8
 
 Name:           xdna-driver
 Version:        2.25.0
@@ -313,6 +313,9 @@ fi
 %config(noreplace) %{_sysconfdir}/depmod.d/99-amdxdna-oot.conf
 
 %changelog
+* Tue Jun 30 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-1
+- Update to 2.25.0
+
 * Wed Jun 24 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-1
 - Update to 2.25.0
 
