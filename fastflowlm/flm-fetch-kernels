@@ -56,9 +56,9 @@ read -r -p "Continue? [y/N] " REPLY
 [[ "$REPLY" =~ ^[Yy]([Ee][Ss])?$ ]] || { warn "Aborted."; exit 0; }
 
 # Check if kernels are already installed.
-# On Fedora the package installs the binary against CMAKE_INSTALL_LIBDIR=lib64,
-# and we mirror the upstream's lib/flm/ layout under lib64/flm/.
-LIB_DEST="${FLM_INSTALL_DIR}/lib64/flm"
+# v0.9.44+: upstream uses a flat lib/ dir (RUNPATH $ORIGIN/../lib) on all
+# platforms; the flm/ subdir and lib64 are no longer used.
+LIB_DEST="${FLM_INSTALL_DIR}/lib"
 XCLBINS_DEST="${FLM_INSTALL_DIR}/share/flm/xclbins"
 if [[ -d "${LIB_DEST}" ]] && ls "${LIB_DEST}/"*.so &>/dev/null 2>&1; then
     warn "NPU kernels already present in ${LIB_DEST}/"
@@ -88,12 +88,11 @@ else
     error "Unrecognised data.tar format in .deb"
 fi
 
-# Upstream layout: blobs live under opt/fastflowlm/lib/flm/*.so and
-# opt/fastflowlm/share/flm/xclbins/. The .deb uses lib/ because Debian's
-# CMAKE_INSTALL_LIBDIR is lib; on Fedora the binary is built against lib64,
-# so we install into lib64/flm/.
+# Upstream layout (v0.9.44+): blobs live under opt/fastflowlm/lib/*.so and
+# opt/fastflowlm/share/flm/xclbins/. The flm/ subdir was dropped and lib64
+# is no longer used; lib/ is consistent across .deb and Fedora builds.
 DEB_OPT="${TMP_DIR}/opt/fastflowlm"
-DEB_LIB="${DEB_OPT}/lib/flm"
+DEB_LIB="${DEB_OPT}/lib"
 DEB_XCLBINS="${DEB_OPT}/share/flm/xclbins"
 [[ -d "${DEB_OPT}" ]] || error "Unexpected .deb layout: /opt/fastflowlm not found"
 [[ -d "${DEB_LIB}" ]] || error "Unexpected .deb layout: ${DEB_LIB#${TMP_DIR}/} not found"

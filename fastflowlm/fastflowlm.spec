@@ -10,11 +10,11 @@
 # v2.0 and are fetched at runtime by flm-fetch-kernels). Suppress the
 # automatically generated DT_NEEDED -> Requires entries for those libs so
 # dnf can install the package without trying to satisfy them.
-%global __requires_exclude ^lib(dequant|gemm|gemma4e_npu|gemma_embedding|gemma_npu|gemma_text_npu|gpt_oss_npu|lfm2_npu|llama_npu|lm_head|mha|nanbeige_npu|phi4_npu|q4_npu_eXpress|qwen2_npu|qwen2vl_npu|qwen3_5vl_npu|qwen3_npu|qwen3vl_npu|whisper_npu)[.]so
+%global __requires_exclude ^lib(dequant|dequant_new|gemm|gemma4e_npu|gemma_embedding|gemma_npu|gemma_text_npu|gpt_oss_npu|lfm2_npu|llama_npu|lm_head|mha|nanbeige_npu|phi4_npu|q4_npu_eXpress|qwen2_npu|qwen2vl_npu|qwen3_5vl_npu|qwen3_6_moe_npu|qwen3_npu|qwen3vl_npu|whisper_npu)[.]so
 
 Name:           fastflowlm
 Version:        0.9.45
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -94,14 +94,14 @@ rm -rf %{buildroot}%{_prefix}/include
 # prebuilt blobs (covered by LICENSE_BINARY.txt, NOT by the MIT License
 # declared above). They are downloaded at first run by flm-fetch-kernels,
 # which requires the user to explicitly accept the proprietary EULA.
-#   - lib64/flm/*.so   : per-model NPU runtime libraries
+#   - lib/*.so         : per-model NPU runtime libraries (v0.9.44+: flat lib/)
 #   - share/flm/xclbins/ : compiled NPU kernels
-rm -rf %{buildroot}%{_prefix}/lib64/flm
+rm -f %{buildroot}%{_prefix}/lib/lib*.so
 rm -rf %{buildroot}%{_prefix}/share/flm/xclbins
 
 # Keep the empty target directories so flm-fetch-kernels has a stable
 # install location owned by this package.
-install -d %{buildroot}%{_prefix}/lib64/flm
+install -d %{buildroot}%{_prefix}/lib
 install -d %{buildroot}%{_prefix}/share/flm/xclbins
 
 # Remove cmake-generated symlink in /usr/local/bin (wrong path for packaging)
@@ -136,10 +136,9 @@ echo ""
 %{_prefix}/bin/flm
 %{_prefix}/VERSION
 # Empty directories owned by this package. The proprietary NPU runtime
-# libraries (lib64/flm/*.so) and compiled NPU kernels (share/flm/xclbins/)
+# libraries (lib/*.so) and compiled NPU kernels (share/flm/xclbins/)
 # are installed into these directories at first run by flm-fetch-kernels.
-%dir %{_prefix}/lib64
-%dir %{_prefix}/lib64/flm
+%dir %{_prefix}/lib
 %dir %{_prefix}/share
 %dir %{_prefix}/share/flm
 %dir %{_prefix}/share/flm/xclbins
@@ -148,6 +147,16 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Fri Jul 11 2026 Eerik Saarinen <eerik.saarinen@gmail.com> - 0.9.45-2
+- Fix packaging failure: upstream v0.9.44+ dropped lib64/flm/ in favour of
+  a flat lib/ dir (RUNPATH $ORIGIN/../lib); update %%install to strip
+  lib/*.so instead of lib64/flm/ and %%files to own lib/ instead of
+  lib64/ + lib64/flm/
+- flm-fetch-kernels: update LIB_DEST to lib/ and DEB_LIB to lib/ to
+  match the new .deb layout (lib/*.so, no flm/ subdir)
+- Add libdequant_new and libqwen3_6_moe_npu to %%__requires_exclude
+  (new libs introduced in v0.9.45)
+
 * Sat Jul 11 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.45-1
 - Update to 0.9.45
 
