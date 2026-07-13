@@ -130,7 +130,7 @@ rebump-xdna:
 	@SPEC=xdna-driver/xdna-driver.spec; \
 	DATE=$$(date '+%a %b %-d %Y'); \
 	VER=$$(awk '/^Version:/{print $$2}' $$SPEC); \
-	CUR_REL=$$(awk -F'[ %]+' '/^Release:/{print $$2}' $$SPEC); \
+	CUR_REL=$$(awk '/^Release:/{r=$$2; sub(/%.*/,"",r); print r}' $$SPEC); \
 	NEW_REL=$$((CUR_REL + 1)); \
 	SHORT=$$(printf '%s' "$(COMMIT)" | cut -c1-12); \
 	sed -i "s/^Release:.*/Release:        $$NEW_REL%{?dist}/" $$SPEC; \
