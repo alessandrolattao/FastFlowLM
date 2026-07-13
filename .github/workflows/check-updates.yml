@@ -71,9 +71,18 @@ jobs:
           NEW_BRANCH: ${{ steps.xdna.outputs.branch }}
           NEW_COMMIT: ${{ steps.xdna.outputs.commit }}
         run: |
-          sed -i "s|^%global amd_branch.*|%global amd_branch ${NEW_BRANCH}|" xdna-driver/xdna-driver.spec
-          sed -i "s|^%global amd_commit.*|%global amd_commit ${NEW_COMMIT}|" xdna-driver/xdna-driver.spec
-          make bump-xdna VER="${NEW_VER}"
+          SPEC=xdna-driver/xdna-driver.spec
+          CUR_VER=$(awk '/^Version:/{print $2}' "$SPEC")
+          sed -i "s|^%global amd_branch.*|%global amd_branch ${NEW_BRANCH}|" "$SPEC"
+          sed -i "s|^%global amd_commit.*|%global amd_commit ${NEW_COMMIT}|" "$SPEC"
+          if [ "$NEW_VER" != "$CUR_VER" ]; then
+            # New upstream version: full bump, release resets to 1.
+            make bump-xdna VER="${NEW_VER}"
+          else
+            # Same version, branch advanced to a new commit: bump the release
+            # and record a rebuild instead of re-adding an "Update to X" entry.
+            make rebump-xdna COMMIT="${NEW_COMMIT}"
+          fi
 
       # --- fastflowlm ---
 

@@ -7,7 +7,7 @@
 
 Name:           xdna-driver
 Version:        2.25.0
-Release:        1%{?dist}
+Release:        5%{?dist}
 Summary:        AMD XDNA userspace driver, XRT libraries, NPU firmware, and DKMS kernel module
 
 License:        Apache-2.0
@@ -313,32 +313,13 @@ fi
 %config(noreplace) %{_sysconfdir}/depmod.d/99-amdxdna-oot.conf
 
 %changelog
-* Tue Jul 7 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-1
-- Update to 2.25.0
-
-* Tue Jun 30 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-1
-- Update to 2.25.0
-
-* Wed Jun 24 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-1
-- Update to 2.25.0
-
-* Mon Jun 22 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-1
-- Update to 2.25.0
-
-* Sat Jun 20 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-1
-- Update to 2.25.0
-
-* Wed Jun 17 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-1
-- Update to 2.25.0
-
-* Sat Jun 13 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-1
-- Update to 2.25.0
-
-* Thu Jun 11 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-1
-- Update to 2.25.0
-
-* Wed Jun 10 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-1
-- Update to 2.25.0
+* Mon Jul 13 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-5
+- Rebuild against the amd-xdna 1.8 branch at commit 485f56cee665 (was
+  039c0d35); the branch advanced without a version change.
+- Drop the stray auto-update changelog entries that re-bumped 2.25.0-1 on
+  every upstream branch commit without incrementing the release. The
+  check-updates workflow now records a single rebuild entry and increments
+  the release instead of resetting it to -1.
 
 * Tue Jun 09 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-4
 - Add /etc/depmod.d/99-amdxdna-oot.conf with "override amdxdna * extra" so the

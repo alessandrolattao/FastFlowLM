@@ -3,7 +3,7 @@ COPR_REPO   = fastflowlm
 OUTDIR      = $(shell pwd)/out
 
 .PHONY: all srpm-xdna srpm-flm copr-xdna copr-flm copr \
-        bump-xdna bump-flm clean help
+        bump-xdna rebump-xdna bump-flm clean help
 
 help:
 	@echo "Available targets:"
@@ -119,6 +119,29 @@ bump-xdna:
 	    next \
 	  } 1' $$SPEC > $$SPEC.tmp && mv $$SPEC.tmp $$SPEC; \
 	echo "Bumped xdna-driver to $(VER)"
+
+# rebump-xdna: same upstream Version, but the amd-xdna branch advanced to a
+# new commit. Increment the Release (do NOT reset it) and add a single
+# "Rebuild against ..." changelog entry, so dnf sees a new NVR without the
+# changelog filling up with duplicate "Update to X" lines on every commit.
+rebump-xdna:
+	@[ -n "$(COMMIT)" ] || { echo "Usage: make rebump-xdna COMMIT=<sha>"; exit 1; }
+	@SPEC=xdna-driver/xdna-driver.spec; \
+	DATE=$$(date '+%a %b %-d %Y'); \
+	VER=$$(awk '/^Version:/{print $$2}' $$SPEC); \
+	CUR_REL=$$(awk -F'[ %]+' '/^Release:/{print $$2}' $$SPEC); \
+	NEW_REL=$$((CUR_REL + 1)); \
+	SHORT=$$(printf '%s' "$(COMMIT)" | cut -c1-12); \
+	sed -i "s/^Release:.*/Release:        $$NEW_REL%{?dist}/" $$SPEC; \
+	awk -v ver="$$VER" -v rel="$$NEW_REL" -v date="$$DATE" -v commit="$$SHORT" ' \
+	  /^%changelog/ { \
+	    print; \
+	    print "* " date " Alessandro Lattao <alessandro@lattao.com> - " ver "-" rel; \
+	    print "- Rebuild against the amd-xdna branch at commit " commit; \
+	    print ""; \
+	    next \
+	  } 1' $$SPEC > $$SPEC.tmp && mv $$SPEC.tmp $$SPEC; \
+	echo "Rebumped xdna-driver to $$VER-$$NEW_REL (commit $$SHORT)"
 
 bump-flm:
 	@[ -n "$(VER)" ] || { echo "Usage: make bump-flm VER=0.9.39"; exit 1; }
