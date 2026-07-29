@@ -13,8 +13,8 @@
 %global __requires_exclude ^lib(dequant|dequant_new|gemm|gemma4e_npu|gemma_embedding|gemma_npu|gemma_text_npu|gpt_oss_npu|lfm2_npu|llama_npu|lm_head|mha|nanbeige_npu|phi4_npu|q4_npu_eXpress|qwen2_npu|qwen2vl_npu|qwen3_5vl_npu|qwen3_6_moe_npu|qwen3_npu|qwen3vl_npu|whisper_npu)[.]so
 
 Name:           fastflowlm
-Version:        0.9.45
-Release:        2%{?dist}
+Version:        0.9.46
+Release:        1%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -147,6 +147,9 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Wed Jul 29 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.46-1
+- Update to 0.9.46
+
 * Fri Jul 11 2026 Eerik Saarinen <eerik.saarinen@gmail.com> - 0.9.45-2
 - Fix packaging failure: upstream v0.9.44+ dropped lib64/flm/ in favour of
   a flat lib/ dir (RUNPATH $ORIGIN/../lib); update %%install to strip
