@@ -4,17 +4,35 @@
 # Minimum expected NPU driver version (passed to CMake)
 %global npu_version 32.0.203.304
 
+# NPU runtime backend. Upstream keeps the prebuilt engine blobs in
+# src/lib/<backend>/ and builds against XRT unless FLM_USE_HRX=ON; we use the
+# XRT one, since HRX would mean shipping upstream's bundled libhrx too.
+%global flm_backend xrt
+
 # The /opt/fastflowlm/bin/flm binary is linked against the proprietary NPU
 # runtime libraries (libdequant.so, libgemm.so, lib*_npu.so, ...) which
 # this RPM intentionally does NOT ship (they live under LICENSE_BINARY.txt
 # v2.0 and are fetched at runtime by flm-fetch-kernels). Suppress the
 # automatically generated DT_NEEDED -> Requires entries for those libs so
 # dnf can install the package without trying to satisfy them.
-%global __requires_exclude ^lib(dequant|dequant_new|gemm|gemma4e_npu|gemma_embedding|gemma_npu|gemma_text_npu|gpt_oss_npu|lfm2_npu|llama_npu|lm_head|mha|nanbeige_npu|phi4_npu|q4_npu_eXpress|qwen2_npu|qwen2vl_npu|qwen3_5vl_npu|qwen3_6_moe_npu|qwen3_npu|qwen3vl_npu|whisper_npu)[.]so
+#
+# Matched by shape, not by an explicit roster: every new model upstream adds
+# ships another lib<model>_npu.so, and an exhaustive list silently produces an
+# uninstallable package the first time one is missing (v1.0.0 added
+# libqwen3_5_omni_npu.so and the resulting RPM could not be installed at all,
+# because nothing provides that soname). The remaining alternatives are the
+# handful of engine libs that do not carry the _npu suffix.
+#
+# The authoritative roster is the source tree itself: upstream ships the blobs
+# under src/lib/<backend>/ (src/lib/xrt for this build) and CMake picks them up
+# with file(GLOB). It cannot be turned into this macro directly -- the macro is
+# needed before %%prep unpacks that directory -- so %%install cross-checks the
+# two and fails the build if this pattern ever stops covering them.
+%global __requires_exclude ^lib([[:alnum:]_]+_npu|dequant[[:alnum:]_]*|gemm|gemma_embedding|lm_head|mha|q4_npu_eXpress)[.]so
 
 Name:           fastflowlm
 Version:        1.0.1
-Release:        1%{?dist}
+Release:        3%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -71,9 +89,20 @@ to GitHub is required for this step.
 
 %build
 cd src
+# CMAKE_INSTALL_LIBDIR must be pinned explicitly. Upstream defaults it to "lib"
+# (src/CMakeLists.txt), but only via `if(NOT CMAKE_INSTALL_LIBDIR)` -- and
+# third_party/tokenizers-cpp/sentencepiece runs include(GNUInstallDirs) from an
+# add_subdirectory() earlier in the file, which populates that variable in the
+# CMake *cache*. On Fedora GNUInstallDirs resolves to lib64, so the upstream
+# default never applies and the install layout silently flips between releases
+# depending on subdirectory ordering (lib64/flm -> lib -> lib64 so far).
+# Passing it on the command line pre-populates the cache entry, which
+# GNUInstallDirs then leaves alone: the layout stays "lib" on every distro,
+# identical to what upstream's own debian/rules produces.
 cmake --preset linux-default \
     -DXRT_INCLUDE_DIR=/opt/xilinx/xrt/include \
     -DXRT_LIB_DIR=/opt/xilinx/xrt/lib \
+    -DCMAKE_INSTALL_LIBDIR=lib \
     -DFLM_VERSION=%{version} \
     -DNPU_VERSION=%{npu_version}
 
@@ -94,10 +123,51 @@ rm -rf %{buildroot}%{_prefix}/include
 # prebuilt blobs (covered by LICENSE_BINARY.txt, NOT by the MIT License
 # declared above). They are downloaded at first run by flm-fetch-kernels,
 # which requires the user to explicitly accept the proprietary EULA.
-#   - lib/*.so         : per-model NPU runtime libraries (v0.9.44+: flat lib/)
+#   - lib/*.so         : per-model NPU runtime libraries (flat lib/, pinned
+#                        via CMAKE_INSTALL_LIBDIR in %%build)
 #   - share/flm/xclbins/ : compiled NPU kernels
+removed_libs=$(ls %{buildroot}%{_prefix}/lib/lib*.so 2>/dev/null | xargs -r -n1 basename)
 rm -f %{buildroot}%{_prefix}/lib/lib*.so
 rm -rf %{buildroot}%{_prefix}/share/flm/xclbins
+
+# Safety net for the removal above. The install layout is pinned, but if a
+# future upstream release moves the blobs somewhere we do not expect, fail the
+# build loudly rather than silently shipping proprietary binaries inside a
+# package declared MIT.
+leftover=$(find %{buildroot}%{_prefix} \( -name '*.so' -o -name '*.so.*' \) | sort)
+if [ -n "$leftover" ]; then
+    echo "ERROR: unexpected shared objects left in buildroot:"
+    echo "$leftover"
+    echo "These are most likely upstream's proprietary NPU blobs under a new"
+    echo "path. Update the removal above before packaging this release."
+    exit 1
+fi
+
+# Second safety net, for the Requires filter rather than the payload.
+# __requires_exclude matches the engine libraries by shape, which covers every
+# lib<model>_npu.so upstream has added so far but cannot cover a name in a shape
+# nobody has used yet. Left alone, that failure mode is invisible here: the
+# build succeeds and produces a package that simply refuses to install, because
+# rpm generated a Requires on a soname nothing provides. So cross-check every
+# DT_NEEDED entry pointing at a library we just deleted, and fail the build with
+# the name to add if the filter does not already cover it.
+uncovered=""
+for soname in $(readelf -d %{buildroot}%{_prefix}/bin/flm | awk -F'[][]' '/NEEDED/{print $2}'); do
+    case " $removed_libs " in
+        *" $soname "*) ;;
+        *) continue ;;
+    esac
+    printf '%s' "$soname" | grep -qE '%{__requires_exclude}' || uncovered="$uncovered $soname"
+done
+if [ -n "$uncovered" ]; then
+    echo "ERROR: flm links against removed NPU libraries that __requires_exclude"
+    echo "does not match:$uncovered"
+    echo "rpm would emit an unsatisfiable Requires for each of them and the"
+    echo "resulting package would build fine but fail to install. Widen"
+    echo "%%__requires_exclude at the top of this spec to cover them."
+    echo "The full set upstream ships lives in src/lib/%{flm_backend}/."
+    exit 1
+fi
 
 # Keep the empty target directories so flm-fetch-kernels has a stable
 # install location owned by this package.
@@ -142,11 +212,36 @@ echo ""
 %dir %{_prefix}/share
 %dir %{_prefix}/share/flm
 %dir %{_prefix}/share/flm/xclbins
-%{_prefix}/share/flm/model_list.json
+# Glob rather than an explicit list: upstream adds metadata files here between
+# releases (model_info.json arrived in v0.9.46) and an exact filename turns
+# every such addition into a build failure.
+%{_prefix}/share/flm/*.json
 /usr/bin/flm
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Wed Aug 12 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.1-3
+- Match the NPU engine libraries in __requires_exclude by shape instead of
+  listing them one by one. v1.0.0 added libqwen3_5_omni_npu.so, which was
+  missing from the roster, so 1.0.1-2 built successfully but could not be
+  installed: nothing provides that soname and dnf had no way to satisfy the
+  generated Requires.
+
+* Wed Aug 12 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.1-2
+- Fix packaging failure that has blocked every build since v0.9.46. Two
+  independent causes, both fixed so they cannot recur:
+  - Pin CMAKE_INSTALL_LIBDIR=lib at configure time. Upstream's "lib" default
+    is guarded by if(NOT CMAKE_INSTALL_LIBDIR), but sentencepiece (pulled in
+    via third_party/tokenizers-cpp) runs include(GNUInstallDirs) first and
+    caches lib64 on Fedora, so the layout flipped to lib64/ in v1.0.0 and the
+    NPU blobs escaped the %%install removal. Upstream never sees this because
+    debian/rules only ever builds on Debian, where GNUInstallDirs picks lib.
+  - Own share/flm/*.json by glob instead of naming model_list.json. Upstream
+    added model_info.json in v0.9.46, which alone broke that build.
+- Add a buildroot guard that fails the build if any .so survives the blob
+  removal, so a future layout change cannot silently ship proprietary NPU
+  binaries in an MIT-declared package.
+
 * Wed Aug 12 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.1-1
 - Update to 1.0.1
 
@@ -156,7 +251,7 @@ echo ""
 * Wed Jul 29 2026 Alessandro Lattao <alessandro@lattao.com> - 0.9.46-1
 - Update to 0.9.46
 
-* Fri Jul 11 2026 Eerik Saarinen <eerik.saarinen@gmail.com> - 0.9.45-2
+* Sat Jul 11 2026 Eerik Saarinen <eerik.saarinen@gmail.com> - 0.9.45-2
 - Fix packaging failure: upstream v0.9.44+ dropped lib64/flm/ in favour of
   a flat lib/ dir (RUNPATH $ORIGIN/../lib); update %%install to strip
   lib/*.so instead of lib64/flm/ and %%files to own lib/ instead of
