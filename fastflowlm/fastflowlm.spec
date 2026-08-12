@@ -32,7 +32,7 @@
 
 Name:           fastflowlm
 Version:        1.0.1
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -153,10 +153,9 @@ fi
 # the name to add if the filter does not already cover it.
 uncovered=""
 for soname in $(readelf -d %{buildroot}%{_prefix}/bin/flm | awk -F'[][]' '/NEEDED/{print $2}'); do
-    case " $removed_libs " in
-        *" $soname "*) ;;
-        *) continue ;;
-    esac
+    # removed_libs is newline-separated, so match whole lines rather than
+    # padding it with spaces: a space-delimited test never fires here.
+    printf '%s\n' "$removed_libs" | grep -qxF "$soname" || continue
     printf '%s' "$soname" | grep -qE '%{__requires_exclude}' || uncovered="$uncovered $soname"
 done
 if [ -n "$uncovered" ]; then
@@ -220,6 +219,13 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Wed Aug 12 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.1-4
+- Fix the Requires cross-check added in 1.0.1-3, which never ran. It tested
+  membership with `case " $removed_libs " in *" $soname "*`, but removed_libs
+  comes from xargs and is newline-separated, so no entry was ever surrounded by
+  the spaces the pattern expects and every soname was skipped. Match whole
+  lines instead. The package payload is unchanged.
+
 * Wed Aug 12 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.1-3
 - Match the NPU engine libraries in __requires_exclude by shape instead of
   listing them one by one. v1.0.0 added libqwen3_5_omni_npu.so, which was
