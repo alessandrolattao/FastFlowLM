@@ -2,6 +2,14 @@ COPR_USER   = alessandrolattao
 COPR_REPO   = fastflowlm
 OUTDIR      = $(shell pwd)/out
 
+# NVR of each spec, used to upload the exact SRPM we just built. OUTDIR
+# accumulates artifacts across runs, so a bare fastflowlm-*.src.rpm glob would
+# also hand COPR whatever stale SRPM is still lying around from an older build.
+spec_ver = $(shell awk '/^Version:/{print $$2}' $(1))
+spec_rel = $(shell awk '/^Release:/{r=$$2; sub(/%.*/,"",r); print r}' $(1))
+FLM_NVR   = fastflowlm-$(call spec_ver,fastflowlm/fastflowlm.spec)-$(call spec_rel,fastflowlm/fastflowlm.spec)
+XDNA_NVR  = xdna-driver-$(call spec_ver,xdna-driver/xdna-driver.spec)-$(call spec_rel,xdna-driver/xdna-driver.spec)
+
 .PHONY: all srpm-xdna srpm-flm copr-xdna copr-flm copr \
         bump-xdna rebump-xdna bump-flm clean help
 
@@ -43,10 +51,27 @@ define build-srpm
 	fi; \
 	rm -rf $$PKG-$$VER $$PKG-$$VER.tar.gz; \
 	LOCAL_SRC="$$(dirname "$$SPEC")/../sources/$$PKG"; \
+	USE_CACHE=""; \
 	if [ -d "$$LOCAL_SRC" ]; then \
+	    if [ -n "$$AMD_COMMIT" ]; then \
+	        WANT="$$AMD_COMMIT"; \
+	    else \
+	        WANT=$$(git -C "$$LOCAL_SRC" rev-parse -q --verify \
+	                "refs/tags/$$BRANCH^{commit}" 2>/dev/null); \
+	    fi; \
+	    HAVE=$$(git -C "$$LOCAL_SRC" rev-parse -q --verify HEAD 2>/dev/null); \
+	    if [ -n "$$WANT" ] && [ "$$WANT" = "$$HAVE" ]; then \
+	        USE_CACHE=1; \
+	    fi; \
+	fi; \
+	if [ -n "$$USE_CACHE" ]; then \
 	    echo "--- Using local source: $$LOCAL_SRC ---"; \
 	    cp -a "$$LOCAL_SRC" "$$PKG-$$VER"; \
 	else \
+	    if [ -d "$$LOCAL_SRC" ]; then \
+	        echo "--- Ignoring stale local source: $$LOCAL_SRC ---"; \
+	        echo "    (checked out at $$(git -C "$$LOCAL_SRC" describe --tags --always 2>/dev/null || echo 'unknown'), need $$BRANCH)"; \
+	    fi; \
 	    echo "--- Cloning $$REPO @ $$BRANCH ---"; \
 	    if [ -n "$$AMD_COMMIT" ]; then \
 	        git clone --recurse-submodules --branch $$BRANCH $$REPO $$PKG-$$VER; \
@@ -72,13 +97,16 @@ sys.stdout.flush() \
 	    cd ..; \
 	fi; \
 	tar czf $$PKG-$$VER.tar.gz $$PKG-$$VER; \
+	SRCFILES=$$(find "$$(dirname "$$SPEC")" -maxdepth 1 -type f \
+	    ! -name "*.spec" -printf '%f\n'); \
 	find "$$(dirname "$$SPEC")" -maxdepth 1 -type f ! -name "*.spec" \
 	    -exec cp {} $$(pwd)/ \; ; \
 	rpmbuild -bs \
 	    --define "_sourcedir $$(pwd)" \
 	    --define "_srcrpmdir $(OUTDIR)" \
 	    "$$SPEC"; \
-	rm -rf $$PKG-$$VER $$PKG-$$VER.tar.gz
+	rm -rf $$PKG-$$VER $$PKG-$$VER.tar.gz; \
+	for f in $$SRCFILES; do rm -f "$$f"; done
 endef
 
 # --- SRPM ---
@@ -94,14 +122,14 @@ srpm-flm:
 # --- COPR upload ---
 
 copr-xdna: srpm-xdna
-	copr-cli build $(COPR_USER)/$(COPR_REPO) $(OUTDIR)/xdna-driver-*.src.rpm
+	copr-cli build $(COPR_USER)/$(COPR_REPO) $(OUTDIR)/$(XDNA_NVR).*.src.rpm
 
 copr-flm: srpm-flm
-	copr-cli build $(COPR_USER)/$(COPR_REPO) $(OUTDIR)/fastflowlm-*.src.rpm --nowait
+	copr-cli build $(COPR_USER)/$(COPR_REPO) $(OUTDIR)/$(FLM_NVR).*.src.rpm --nowait
 
 copr: srpm-xdna srpm-flm
-	copr-cli build $(COPR_USER)/$(COPR_REPO) $(OUTDIR)/xdna-driver-*.src.rpm
-	copr-cli build $(COPR_USER)/$(COPR_REPO) $(OUTDIR)/fastflowlm-*.src.rpm --nowait
+	copr-cli build $(COPR_USER)/$(COPR_REPO) $(OUTDIR)/$(XDNA_NVR).*.src.rpm
+	copr-cli build $(COPR_USER)/$(COPR_REPO) $(OUTDIR)/$(FLM_NVR).*.src.rpm --nowait
 
 # --- Version bump ---
 
