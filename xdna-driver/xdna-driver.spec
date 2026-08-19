@@ -2,12 +2,12 @@
 
 # Upstream pin: amdxdna 0.15 lives only on the AMD '1.8' release branch (no tag).
 # The build system clones this branch at this exact commit for reproducibility.
-%global amd_branch 1.8
-%global amd_commit 31c01f2019e79e13603239478dad8291a27897a5
+%global amd_branch 1.9
+%global amd_commit 9ad7b3c8b41e8113fd5f2127d03bebfdfdc746ea
 
 Name:           xdna-driver
-Version:        2.25.0
-Release:        10%{?dist}
+Version:        2.26.0
+Release:        1%{?dist}
 Summary:        AMD XDNA userspace driver, XRT libraries, NPU firmware, and DKMS kernel module
 
 License:        Apache-2.0
@@ -313,6 +313,9 @@ fi
 %config(noreplace) %{_sysconfdir}/depmod.d/99-amdxdna-oot.conf
 
 %changelog
+* Wed Aug 19 2026 Alessandro Lattao <alessandro@lattao.com> - 2.26.0-1
+- Update to 2.26.0
+
 * Thu Aug 6 2026 Alessandro Lattao <alessandro@lattao.com> - 2.25.0-10
 - Rebuild against the amd-xdna branch at commit 31c01f2019e7
 
