@@ -31,8 +31,8 @@
 %global __requires_exclude ^lib([[:alnum:]_]+_npu|dequant[[:alnum:]_]*|gemm|gemma_embedding|lm_head|mha|q4_npu_eXpress)[.]so
 
 Name:           fastflowlm
-Version:        1.0.1
-Release:        4%{?dist}
+Version:        1.0.2
+Release:        1%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -219,6 +219,9 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Thu Aug 20 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.2-1
+- Update to 1.0.2
+
 * Wed Aug 12 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.1-4
 - Fix the Requires cross-check added in 1.0.1-3, which never ran. It tested
   membership with `case " $removed_libs " in *" $soname "*`, but removed_libs
