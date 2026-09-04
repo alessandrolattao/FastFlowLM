@@ -32,7 +32,7 @@
 
 Name:           fastflowlm
 Version:        1.0.4
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -123,11 +123,19 @@ rm -rf %{buildroot}%{_prefix}/include
 # prebuilt blobs (covered by LICENSE_BINARY.txt, NOT by the MIT License
 # declared above). They are downloaded at first run by flm-fetch-kernels,
 # which requires the user to explicitly accept the proprietary EULA.
-#   - lib/*.so         : per-model NPU runtime libraries (flat lib/, pinned
+#   - lib/*.so*        : per-model NPU runtime libraries (flat lib/, pinned
 #                        via CMAKE_INSTALL_LIBDIR in %%build)
 #   - share/flm/xclbins/ : compiled NPU kernels
-removed_libs=$(ls %{buildroot}%{_prefix}/lib/lib*.so 2>/dev/null | xargs -r -n1 basename)
-rm -f %{buildroot}%{_prefix}/lib/lib*.so
+#
+# The glob mirrors upstream's install rule, which is a
+# file(GLOB "src/lib/<backend>/*.so*") fed to install(FILES ...) in
+# src/CMakeLists.txt: the trailing star means every name that merely *contains*
+# .so gets installed into lib/, not only the ones ending in it. v1.0.4 shipped
+# a stray backup copy of one of the blobs, libq4_npu_eXpress.so.bak-20260826,
+# which a lib*.so pattern leaves behind -- and the guard below then (correctly)
+# refused to package it.
+removed_libs=$(ls %{buildroot}%{_prefix}/lib/*.so* 2>/dev/null | xargs -r -n1 basename)
+rm -f %{buildroot}%{_prefix}/lib/*.so*
 rm -rf %{buildroot}%{_prefix}/share/flm/xclbins
 
 # Safety net for the removal above. The install layout is pinned, but if a
@@ -219,6 +227,13 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Fri Sep 4 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.4-2
+- Fix the build failure of 1.0.4-1. Upstream v1.0.4 committed a backup copy of
+  one of the proprietary NPU blobs, src/lib/xrt/libq4_npu_eXpress.so.bak-20260826,
+  and upstream's install rule globs "*.so*" -- so the copy landed in
+  /opt/fastflowlm/lib/ while the %%install removal only matched lib*.so. The
+  buildroot guard caught it and failed the build, as designed. Match upstream's
+  glob (*.so*) so any such name is removed by construction.
 * Wed Sep 2 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.4-1
 - Update to 1.0.4
 
