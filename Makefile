@@ -33,6 +33,17 @@ help:
 
 # build-srpm: generate a .src.rpm from a spec file
 # Usage: $(call build-srpm,<spec-path>)
+#
+# xdna-driver only: the NPU firmware is not in the git tree, it is fetched here
+# and packed into the tarball. Upstream's 1.9 branch dropped the "firmwares"
+# array from tools/info.json in favour of a WHENCE manifest (tools/WHENCE,
+# pinned to an immutable drm-firmware commit) consumed by their own
+# tools/sync_from_whence.py, so call that script rather than parsing the
+# manifest here -- the schema stays upstream's problem. The failure is fatal on
+# purpose: the inline parser it replaces was joined to the rest of the recipe
+# with ';', so when info.json changed shape it died with a KeyError, the SRPM
+# was still built (without a single firmware file) and every chroot then failed
+# much later at %files with a missing /usr/lib/firmware/amdnpu.
 define build-srpm
 	dnf install -y git python3 ; \
 	SPEC="$(1)"; \
@@ -83,18 +94,9 @@ define build-srpm
 	fi; \
 	if [ "$$PKG" = "xdna-driver" ]; then \
 	    echo "--- Downloading NPU firmware ---"; \
-	    cd $$PKG-$$VER; \
-	    python3 -c " \
-import json, urllib.request, os, sys; \
-info = json.load(open('tools/info.json')); \
-[( \
-    os.makedirs('firmware/amdnpu/{}_{}'.format(fw['pci_device_id'], fw['pci_revision_id']), exist_ok=True), \
-    print('  {} {} -> firmware/amdnpu/{}_{}/{}'.format(fw['device'], fw['version'], fw['pci_device_id'], fw['pci_revision_id'], fw['fw_name'])), \
-    urllib.request.urlretrieve(fw['url'], 'firmware/amdnpu/{}_{}/{}'.format(fw['pci_device_id'], fw['pci_revision_id'], fw['fw_name'])) \
-) for fw in info['firmwares']]; \
-sys.stdout.flush() \
-"; \
-	    cd ..; \
+	    ( cd $$PKG-$$VER && \
+	      python3 tools/sync_from_whence.py firmware \
+	          --whence tools/WHENCE --out firmware/amdnpu ) || exit 1; \
 	fi; \
 	tar czf $$PKG-$$VER.tar.gz $$PKG-$$VER; \
 	SRCFILES=$$(find "$$(dirname "$$SPEC")" -maxdepth 1 -type f \

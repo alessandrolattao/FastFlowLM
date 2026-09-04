@@ -7,7 +7,7 @@
 
 Name:           xdna-driver
 Version:        2.26.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        AMD XDNA userspace driver, XRT libraries, NPU firmware, and DKMS kernel module
 
 License:        Apache-2.0
@@ -120,10 +120,30 @@ ln -sf lib64 %{buildroot}/opt/xilinx/xrt/lib
 install -d %{buildroot}/opt/xilinx/xrt/include
 cp -r xrt/src/runtime_src/core/include/. %{buildroot}/opt/xilinx/xrt/include/
 
-# Firmware (firmware/amdnpu/XX/npu.dev.sbin -> /usr/lib/firmware/amdnpu/XX/npu.dev.sbin)
-find firmware/amdnpu -type f | while read f; do
-    install -Dm644 "$f" "%{buildroot}/usr/lib/$f"
-done
+# Firmware. The tarball carries firmware/amdnpu/<pci_dev>_<rev>/ exactly as
+# upstream's tools/sync_from_whence.py laid it out: one versioned blob per
+# device (1.9_npu.sbin.2.14.0.114) plus the stable npu.dev.sbin / cert.dev.sbin
+# symlinks that the driver actually requests, some of them pointing into a
+# sibling device directory. Copy the tree with cp -a so those symlinks survive
+# -- a "find -type f" copy drops every one of them and the driver then finds no
+# firmware at all for the devices that only have an alias.
+#
+# Fail loudly if the tree is missing: it is populated by the SRPM step, not by
+# upstream's git tree, and %%files below would otherwise report the far less
+# obvious "File not found: /usr/lib/firmware/amdnpu".
+if [ ! -d firmware/amdnpu ]; then
+    echo "ERROR: no firmware/amdnpu/ in the source tarball."
+    echo "The SRPM step (Makefile / .copr/Makefile) has to populate it with"
+    echo "  python3 tools/sync_from_whence.py firmware \\"
+    echo "      --whence tools/WHENCE --out firmware/amdnpu"
+    echo "before packing the tarball. Upstream moved the firmware manifest out"
+    echo "of tools/info.json and into tools/WHENCE on the 1.9 branch."
+    exit 1
+fi
+install -d %{buildroot}/usr/lib/firmware
+cp -a firmware/amdnpu %{buildroot}/usr/lib/firmware/
+find %{buildroot}/usr/lib/firmware/amdnpu -type d -exec chmod 755 {} +
+find %{buildroot}/usr/lib/firmware/amdnpu -type f -exec chmod 644 {} +
 
 # DKMS: install the PRIMARY amdxdna 0.15 driver source (drivers/accel/amdxdna)
 # to /usr/src/xrt-amdxdna-VERSION/. The repo layout MUST be preserved: the
@@ -313,6 +333,19 @@ fi
 %config(noreplace) %{_sysconfdir}/depmod.d/99-amdxdna-oot.conf
 
 %changelog
+* Fri Sep 4 2026 Alessandro Lattao <alessandro@lattao.com> - 2.26.0-3
+- Fix the build failure that has blocked every 2.26.0 build. The 1.9 branch
+  dropped the "firmwares" array from tools/info.json and replaced it with the
+  tools/WHENCE manifest plus tools/sync_from_whence.py; the SRPM step still
+  parsed info.json, died with a KeyError, and - because that step was joined to
+  the recipe with ';' - produced an SRPM with no firmware at all, which then
+  failed in every chroot. Call upstream's own sync script, and make the failure
+  fatal so a firmware-less SRPM can never be published again.
+- %%install: copy the firmware tree with cp -a and guard on its presence. The
+  new layout is a versioned blob per device plus the npu.dev.sbin/cert.dev.sbin
+  symlinks the driver requests, and the previous "find -type f" copy would have
+  silently dropped every symlink.
+
 * Thu Aug 20 2026 Alessandro Lattao <alessandro@lattao.com> - 2.26.0-2
 - Rebuild against the amd-xdna branch at commit c4052fc30322
 
