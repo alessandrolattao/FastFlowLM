@@ -3,17 +3,16 @@
 RPM packaging for [FastFlowLM](https://github.com/FastFlowLM/FastFlowLM) on Fedora Linux.
 
 <!--
-COPR's own status_image is used here instead of a shields.io dynamic/json badge.
-Shields can read the build state out of the COPR API, but its colour is a static
-query parameter (color=brightgreen), so a failed build still rendered as a green
-badge reading "failed" -- which is how the 2.26.0 breakage sat unnoticed for two
-weeks. This image is generated and coloured by COPR itself.
+shields.io's native COPR badge, not COPR's own status_image PNG. COPR serves
+that PNG with "cache-control: no-cache", so GitHub's camo image proxy falls back
+to its own long TTL and kept showing "in progress" long after the build had
+finished. shields sends max-age=30, which camo honours, and it colours the badge
+from the state it read -- unlike the hardcoded color=brightgreen this file used
+to carry, which rendered a failed build in green for two weeks.
 -->
 
-| Package | COPR build |
-|---|---|
-| [xdna-driver](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/xdna-driver/) | [![xdna-driver build status](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/xdna-driver/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/xdna-driver/) |
-| [fastflowlm](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/fastflowlm/) | [![fastflowlm build status](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/fastflowlm/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/fastflowlm/) |
+[![xdna-driver COPR build](https://img.shields.io/copr/build/alessandrolattao/fastflowlm/xdna-driver?label=xdna-driver)](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/xdna-driver/)
+[![fastflowlm COPR build](https://img.shields.io/copr/build/alessandrolattao/fastflowlm/fastflowlm?label=fastflowlm)](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/fastflowlm/)
 
 FastFlowLM runs large language models on AMD Ryzen AI XDNA2 NPUs.
 
