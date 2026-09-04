@@ -2,8 +2,18 @@
 
 RPM packaging for [FastFlowLM](https://github.com/FastFlowLM/FastFlowLM) on Fedora Linux.
 
-[![xdna-driver build](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcopr.fedorainfracloud.org%2Fapi_3%2Fpackage%3Fownername%3Dalessandrolattao%26projectname%3Dfastflowlm%26packagename%3Dxdna-driver%26with_latest_build%3DTrue&query=%24.builds.latest.state&label=xdna-driver&color=brightgreen)](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/xdna-driver/)
-[![fastflowlm build](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcopr.fedorainfracloud.org%2Fapi_3%2Fpackage%3Fownername%3Dalessandrolattao%26projectname%3Dfastflowlm%26packagename%3Dfastflowlm%26with_latest_build%3DTrue&query=%24.builds.latest.state&label=fastflowlm&color=brightgreen)](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/fastflowlm/)
+<!--
+COPR's own status_image is used here instead of a shields.io dynamic/json badge.
+Shields can read the build state out of the COPR API, but its colour is a static
+query parameter (color=brightgreen), so a failed build still rendered as a green
+badge reading "failed" -- which is how the 2.26.0 breakage sat unnoticed for two
+weeks. This image is generated and coloured by COPR itself.
+-->
+
+| Package | COPR build |
+|---|---|
+| [xdna-driver](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/xdna-driver/) | [![xdna-driver build status](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/xdna-driver/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/xdna-driver/) |
+| [fastflowlm](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/fastflowlm/) | [![fastflowlm build status](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/fastflowlm/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/alessandrolattao/fastflowlm/package/fastflowlm/) |
 
 FastFlowLM runs large language models on AMD Ryzen AI XDNA2 NPUs.
 
