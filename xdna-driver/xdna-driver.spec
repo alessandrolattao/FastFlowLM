@@ -7,7 +7,7 @@
 
 Name:           xdna-driver
 Version:        2.26.0
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        AMD XDNA userspace driver, XRT libraries, NPU firmware, and DKMS kernel module
 
 License:        Apache-2.0
@@ -162,9 +162,11 @@ cp -r drivers/accel/tools   "${DKMS_SRC}/drivers/accel/tools"
 cp -r include               "${DKMS_SRC}/include"
 
 # dkms.conf. No BUILD_EXCLUSIVE_KERNEL_MAX: the 0.15 module builds on kernel 7+
-# too and intentionally overrides the in-tree driver (DEST in updates/, which
-# wins over kernel/ in depmod order). XDNA_HASH/XDNA_DRIVER_VERSION are passed
-# so the module's Makefile does not shell out to git (absent in the DKMS tree).
+# too and intentionally overrides the in-tree driver. DEST_MODULE_LOCATION below
+# is advisory on RPM distros: dkms rewrites it to extra/, which is where the
+# module actually lands and why 99-amdxdna-oot.conf overrides on "extra" rather
+# than "updates". XDNA_HASH/XDNA_DRIVER_VERSION are passed so the module's
+# Makefile does not shell out to git (absent in the DKMS tree).
 cat > "${DKMS_SRC}/dkms.conf" << 'DKMSEOF'
 PACKAGE_NAME="xrt-amdxdna"
 PACKAGE_VERSION="%{version}"
@@ -246,10 +248,16 @@ if ! command -v dkms &>/dev/null; then
     echo ""
     exit 0
 fi
-# Register the source tree with DKMS. Skip if already registered (upgrade
-# path: the previous package version has the same source under the same
-# name/version).
-if ! dkms status -m xrt-amdxdna -v %{version} 2>/dev/null | grep -q xrt-amdxdna; then
+# Register the source tree with DKMS. Always call 'dkms add', even when this
+# version is already registered: the --rpm_safe_upgrade lock that cancels the
+# outgoing package's %%preun removal is written by 'dkms add' BEFORE it bails out
+# with "DKMS tree already contains" (see dkms(8), add_module). Skipping the call
+# on a reinstall leaves that removal unguarded, and the module is then stripped
+# from every kernel except the one %%posttrans rebuilds. The "already contains"
+# error is expected in that case, so only silence it there.
+if dkms status -m xrt-amdxdna -v %{version} 2>/dev/null | grep -q xrt-amdxdna; then
+    dkms add -m xrt-amdxdna -v %{version} --rpm_safe_upgrade >/dev/null 2>&1 || :
+else
     dkms add -m xrt-amdxdna -v %{version} --rpm_safe_upgrade 2>&1 || :
 fi
 
@@ -308,11 +316,16 @@ fi
 
 %preun dkms
 command -v dkms >/dev/null 2>&1 || exit 0
-# Only remove on final erase ($1 == 0), not on upgrade. --rpm_safe_upgrade
-# is a second safety net: the new package's %post re-adds the same version.
-if [ "$1" = "0" ]; then
-    dkms remove -m xrt-amdxdna -v %{version} --all --rpm_safe_upgrade 2>&1 || :
-fi
+# No "$1 = 0" guard. The DKMS tree is keyed by %%{version}, so the outgoing
+# package's %%preun is the only chance to drop the outgoing tree; skipping it on
+# upgrade orphans that tree, because /usr/src/xrt-amdxdna-<old> leaves with the
+# old package and dkms then reports "xrt-amdxdna/<old>: broken" forever. Worse
+# than the noise: every kernel the new version is not rebuilt for keeps the OLD
+# module in extra/, unrebuildable, with its in-tree counterpart still archived.
+# --rpm_safe_upgrade is what protects a same-version reinstall: dkms cancels the
+# removal only when a lock left by %%post names this exact module-version, so a
+# version change still removes.
+dkms remove -m xrt-amdxdna -v %{version} --all --rpm_safe_upgrade 2>&1 || :
 
 %files
 %license xrt/LICENSE
@@ -333,6 +346,29 @@ fi
 %config(noreplace) %{_sysconfdir}/depmod.d/99-amdxdna-oot.conf
 
 %changelog
+* Thu Sep 10 2026 Alessandro Lattao <alessandro@lattao.com> - 2.26.0-4
+- Fix the DKMS scriptlets leaving the previous version's tree behind on every
+  upgrade. %%preun only removed when $1 was 0 (final erase), but the DKMS tree is
+  keyed by %%{version}: on an upgrade the outgoing package's %%preun is the only
+  chance to drop the outgoing tree, and /usr/src/xrt-amdxdna-<old> leaves with
+  it. dkms has reported "xrt-amdxdna/2.25.0: broken - Manual intervention is
+  required!" on every kernel install since 2.26.0 shipped. The orphan is not
+  just noise: any kernel the new version is not rebuilt for keeps the OLD
+  amdxdna in extra/, which dkms can no longer rebuild or revert, with the
+  in-tree module still archived away.
+- %%post dkms: call 'dkms add' unconditionally. It writes the --rpm_safe_upgrade
+  lock before bailing out with "DKMS tree already contains", and that lock is
+  what cancels the %%preun removal on a same-version reinstall. With the previous
+  status guard, dropping the %%preun guard alone would have stripped the module
+  from every kernel but the newest on 'dnf reinstall'.
+- Both changes verified in a Fedora 44 container with two installed kernels,
+  against rpm -U and dnf upgrade, plus reinstall and erase. Note this release
+  cannot heal an already-broken tree: on upgrade it is the OLD package's %%preun
+  that runs. Existing installs need a one-off manual cleanup.
+- %%install: correct a stale comment claiming the module is installed under
+  updates/. dkms rewrites DEST_MODULE_LOCATION to extra/ on RPM distros, which
+  is what 99-amdxdna-oot.conf already overrides on.
+
 * Fri Sep 4 2026 Alessandro Lattao <alessandro@lattao.com> - 2.26.0-3
 - Fix the build failure that has blocked every 2.26.0 build. The 1.9 branch
   dropped the "firmwares" array from tools/info.json and replaced it with the
