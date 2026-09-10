@@ -31,8 +31,8 @@
 %global __requires_exclude ^lib([[:alnum:]_]+_npu|dequant[[:alnum:]_]*|gemm|gemma_embedding|lm_head|mha|q4_npu_eXpress)[.]so
 
 Name:           fastflowlm
-Version:        1.0.4
-Release:        2%{?dist}
+Version:        1.0.5
+Release:        1%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -227,6 +227,9 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Thu Sep 10 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.5-1
+- Update to 1.0.5
+
 * Fri Sep 4 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.4-2
 - Fix the build failure of 1.0.4-1. Upstream v1.0.4 committed a backup copy of
   one of the proprietary NPU blobs, src/lib/xrt/libq4_npu_eXpress.so.bak-20260826,
