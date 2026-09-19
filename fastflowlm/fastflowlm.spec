@@ -31,7 +31,7 @@
 %global __requires_exclude ^lib([[:alnum:]_]+_npu|dequant[[:alnum:]_]*|gemm|gemma_embedding|lm_head|mha|q4_npu_eXpress)[.]so
 
 Name:           fastflowlm
-Version:        1.0.5
+Version:        1.0.6
 Release:        1%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
@@ -227,6 +227,9 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Sat Sep 19 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.6-1
+- Update to 1.0.6
+
 * Thu Sep 10 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.5-1
 - Update to 1.0.5
 
