@@ -16,23 +16,18 @@
 # automatically generated DT_NEEDED -> Requires entries for those libs so
 # dnf can install the package without trying to satisfy them.
 #
-# Matched by shape, not by an explicit roster: every new model upstream adds
-# ships another lib<model>_npu.so, and an exhaustive list silently produces an
-# uninstallable package the first time one is missing (v1.0.0 added
-# libqwen3_5_omni_npu.so and the resulting RPM could not be installed at all,
-# because nothing provides that soname). The remaining alternatives are the
-# handful of engine libs that do not carry the _npu suffix.
-#
-# The authoritative roster is the source tree itself: upstream ships the blobs
-# under src/lib/<backend>/ (src/lib/xrt for this build) and CMake picks them up
-# with file(GLOB). It cannot be turned into this macro directly -- the macro is
-# needed before %%prep unpacks that directory -- so %%install cross-checks the
-# two and fails the build if this pattern ever stops covering them.
-%global __requires_exclude ^lib([[:alnum:]_]+_npu|dequant[[:alnum:]_]*|gemm|gemma_embedding|lm_head|mha|q4_npu_eXpress)[.]so
+# The roster is built from the libraries %%install actually deletes, never
+# written by hand. Every hand-maintained form broke on a new upstream name:
+# an explicit list missed libqwen3_5_omni_npu.so (v1.0.0), and the "by shape"
+# regex that replaced it missed libqwen3vl_flash.so and libgemma4e_flash.so
+# (v1.0.6). %%define (not %%global) keeps the body unexpanded until rpm's
+# dependency generator reads it, which runs after %%install has written the
+# file, so the %%(cat) sees the regex for this very build.
+%define __requires_exclude %(cat %{_builddir}/%{name}-requires-exclude 2>/dev/null)
 
 Name:           fastflowlm
 Version:        1.0.6
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -151,28 +146,36 @@ if [ -n "$leftover" ]; then
     exit 1
 fi
 
-# Second safety net, for the Requires filter rather than the payload.
-# __requires_exclude matches the engine libraries by shape, which covers every
-# lib<model>_npu.so upstream has added so far but cannot cover a name in a shape
-# nobody has used yet. Left alone, that failure mode is invisible here: the
-# build succeeds and produces a package that simply refuses to install, because
-# rpm generated a Requires on a soname nothing provides. So cross-check every
-# DT_NEEDED entry pointing at a library we just deleted, and fail the build with
-# the name to add if the filter does not already cover it.
+# Write the __requires_exclude roster (see the top of this spec) from the
+# libraries just deleted: one alternative per file, dots bracketed, anchored on
+# the "(" that opens rpm's soname dependency suffix, e.g. libgemm.so()(64bit).
+# Fail rather than write a partial regex if a name ever needs more escaping.
+if [ -z "$removed_libs" ]; then
+    echo "ERROR: no NPU libraries were removed from %{_prefix}/lib, so the"
+    echo "Requires filter would be empty. Upstream moved the blobs again."
+    exit 1
+fi
+if printf '%s\n' "$removed_libs" | grep -q '[^[:alnum:]_.-]'; then
+    echo "ERROR: removed library names contain characters the Requires filter"
+    echo "does not escape:"
+    printf '%s\n' "$removed_libs" | grep '[^[:alnum:]_.-]'
+    exit 1
+fi
+exclude="^($(printf '%s\n' "$removed_libs" | sed 's/[.]/[.]/g' | paste -sd'|'))[(]"
+printf '%s' "$exclude" > %{_builddir}/%{name}-requires-exclude
+
+# Cross-check the roster against what flm really links to: every DT_NEEDED
+# entry naming a library we deleted must be matched, or rpm would emit a
+# Requires nothing provides and the package would build fine but refuse to
+# install.
 uncovered=""
 for soname in $(readelf -d %{buildroot}%{_prefix}/bin/flm | awk -F'[][]' '/NEEDED/{print $2}'); do
-    # removed_libs is newline-separated, so match whole lines rather than
-    # padding it with spaces: a space-delimited test never fires here.
+    # removed_libs is newline-separated, so match whole lines.
     printf '%s\n' "$removed_libs" | grep -qxF "$soname" || continue
-    printf '%s' "$soname" | grep -qE '%{__requires_exclude}' || uncovered="$uncovered $soname"
+    printf '%s()(64bit)' "$soname" | grep -qE "$exclude" || uncovered="$uncovered $soname"
 done
 if [ -n "$uncovered" ]; then
-    echo "ERROR: flm links against removed NPU libraries that __requires_exclude"
-    echo "does not match:$uncovered"
-    echo "rpm would emit an unsatisfiable Requires for each of them and the"
-    echo "resulting package would build fine but fail to install. Widen"
-    echo "%%__requires_exclude at the top of this spec to cover them."
-    echo "The full set upstream ships lives in src/lib/%{flm_backend}/."
+    echo "ERROR: the generated Requires filter does not match:$uncovered"
     exit 1
 fi
 
@@ -227,6 +230,14 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Wed Sep 23 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.6-2
+- Fix the build failure of 1.0.6-1. Upstream v1.0.6 added two NPU engine
+  libraries, libqwen3vl_flash.so and libgemma4e_flash.so, that the "by shape"
+  __requires_exclude regex did not match; the Requires cross-check caught it
+  and failed the build, as designed. Generate the filter from the libraries
+  %%install removes instead of maintaining it by hand, so a new upstream name
+  can no longer break the build or produce an uninstallable package.
+
 * Sat Sep 19 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.6-1
 - Update to 1.0.6
 
