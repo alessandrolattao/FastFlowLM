@@ -26,8 +26,8 @@
 %define __requires_exclude %(cat %{_builddir}/%{name}-requires-exclude 2>/dev/null)
 
 Name:           fastflowlm
-Version:        1.0.6
-Release:        2%{?dist}
+Version:        1.0.7
+Release:        1%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -230,6 +230,9 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Thu Oct 1 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.7-1
+- Update to 1.0.7
+
 * Wed Sep 23 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.6-2
 - Fix the build failure of 1.0.6-1. Upstream v1.0.6 added two NPU engine
   libraries, libqwen3vl_flash.so and libgemma4e_flash.so, that the "by shape"
