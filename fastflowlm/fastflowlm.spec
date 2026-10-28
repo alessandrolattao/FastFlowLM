@@ -27,7 +27,7 @@
 
 Name:           fastflowlm
 Version:        1.0.10
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -50,7 +50,8 @@ BuildRequires:  boost-devel
 BuildRequires:  libcurl-devel
 BuildRequires:  libdrm-devel
 BuildRequires:  fftw-devel
-BuildRequires:  readline-devel
+# Line editing: upstream switched from GNU readline (GPL-3) to libedit in v1.0.10
+BuildRequires:  pkgconfig(libedit)
 BuildRequires:  libuuid-devel
 BuildRequires:  cargo
 BuildRequires:  rust
@@ -179,6 +180,12 @@ if [ -n "$uncovered" ]; then
     exit 1
 fi
 
+# Upstream installs its license files next to the model metadata in share/flm/
+# (v1.0.9+). flm never reads them; the ones that apply to this package go
+# through %%license instead, and LICENSE_BINARY.txt covers only the blobs
+# stripped above, so it does not belong in the payload.
+rm -f %{buildroot}%{_prefix}/share/flm/*.txt
+
 # Keep the empty target directories so flm-fetch-kernels has a stable
 # install location owned by this package.
 install -d %{buildroot}%{_prefix}/lib
@@ -209,7 +216,7 @@ echo "  sudo flm-fetch-kernels"
 echo ""
 
 %files
-%license LICENSE_RUNTIME.txt
+%license LICENSE_RUNTIME.txt THIRD_PARTY_NOTICES.txt
 %doc README.md
 %dir %{_prefix}
 %dir %{_prefix}/bin
@@ -230,6 +237,16 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Wed Oct 28 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.10-2
+- Fix the build failures of 1.0.9-1 and 1.0.10-1.
+  - Upstream v1.0.9 installs LICENSE_RUNTIME.txt and LICENSE_BINARY.txt (and
+    v1.0.10 THIRD_PARTY_NOTICES.txt) into share/flm/, which were left
+    unpackaged. Drop them from share/flm/ and ship LICENSE_RUNTIME.txt and
+    THIRD_PARTY_NOTICES.txt via %%license; LICENSE_BINARY.txt only covers the
+    NPU blobs this package does not ship.
+  - Upstream v1.0.10 replaced GNU readline with libedit. BuildRequire
+    pkgconfig(libedit) instead of readline-devel.
+
 * Fri Oct 23 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.10-1
 - Update to 1.0.10
 
