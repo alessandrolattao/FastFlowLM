@@ -26,8 +26,8 @@
 %define __requires_exclude %(cat %{_builddir}/%{name}-requires-exclude 2>/dev/null)
 
 Name:           fastflowlm
-Version:        1.0.10
-Release:        2%{?dist}
+Version:        1.0.11
+Release:        1%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -237,6 +237,9 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Thu Oct 29 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.11-1
+- Update to 1.0.11
+
 * Wed Oct 28 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.10-2
 - Fix the build failures of 1.0.9-1 and 1.0.10-1.
   - Upstream v1.0.9 installs LICENSE_RUNTIME.txt and LICENSE_BINARY.txt (and
