@@ -26,7 +26,7 @@
 %define __requires_exclude %(cat %{_builddir}/%{name}-requires-exclude 2>/dev/null)
 
 Name:           fastflowlm
-Version:        1.0.12
+Version:        1.0.13
 Release:        1%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
@@ -237,6 +237,9 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Sat Nov 14 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.13-1
+- Update to 1.0.13
+
 * Thu Nov 5 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.12-1
 - Update to 1.0.12
 
