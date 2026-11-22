@@ -27,7 +27,7 @@
 
 Name:           fastflowlm
 Version:        1.0.13
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -114,6 +114,14 @@ test -f %{buildroot}%{_prefix}/bin/flm || { echo "ERROR: flm binary not installe
 
 # Remove files not needed at runtime
 rm -rf %{buildroot}%{_prefix}/include
+# Upstream v1.0.13 added an SDK for out-of-tree model extensions (the CMake
+# install component ModelExtension). Besides its header in include/, removed
+# above, it installs a CMake package config in lib/cmake/ and the JSON schemas
+# of the extension manifest and the catalog overlay in share/flm/schemas/.
+# flm validates both formats in code and never reads the schema files (only
+# upstream's tests do), and the CMake config is useless without the header.
+rm -rf %{buildroot}%{_prefix}/lib/cmake
+rm -rf %{buildroot}%{_prefix}/share/flm/schemas
 
 # Strip out the proprietary NPU kernel binaries that upstream ships as
 # prebuilt blobs (covered by LICENSE_BINARY.txt, NOT by the MIT License
@@ -237,6 +245,14 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Sun Nov 22 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.13-2
+- Fix the build failure of 1.0.13-1. Upstream v1.0.13 added an SDK for
+  out-of-tree model extensions (CMake component ModelExtension), which installs
+  a CMake package config into lib/cmake/ and two JSON schemas into
+  share/flm/schemas/, and these were left unpackaged. Drop them like the
+  headers in include/: flm never reads the schemas at runtime, and the CMake
+  config needs the extension header, which this package does not ship.
+
 * Sat Nov 14 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.13-1
 - Update to 1.0.13
 
