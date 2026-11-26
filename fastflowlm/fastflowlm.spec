@@ -26,8 +26,8 @@
 %define __requires_exclude %(cat %{_builddir}/%{name}-requires-exclude 2>/dev/null)
 
 Name:           fastflowlm
-Version:        1.0.13
-Release:        2%{?dist}
+Version:        1.0.14
+Release:        1%{?dist}
 Summary:        Run LLMs on AMD Ryzen AI NPUs - runtime and CLI
 
 # Open-source (MIT) portion only. Proprietary NPU kernel binaries are NOT
@@ -245,6 +245,9 @@ echo ""
 /usr/bin/flm-fetch-kernels
 
 %changelog
+* Thu Nov 26 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.14-1
+- Update to 1.0.14
+
 * Sun Nov 22 2026 Alessandro Lattao <alessandro@lattao.com> - 1.0.13-2
 - Fix the build failure of 1.0.13-1. Upstream v1.0.13 added an SDK for
   out-of-tree model extensions (CMake component ModelExtension), which installs
